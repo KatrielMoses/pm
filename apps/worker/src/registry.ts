@@ -58,10 +58,12 @@ import {
   type AiJobDeps,
   type VoiceJobDeps,
   AUTOMATION_SCHEDULES,
+  agentConnectorTestHandler,
   automationRunHandler,
   automationSweepHandler,
   AutomationOutcomeConsumer,
   AutomationTriggerConsumer,
+  type AgentJobDeps,
   type AutomationJobDeps,
 } from '@pm/work';
 
@@ -106,6 +108,7 @@ export interface WorkerModules {
   integrations: IntegrationJobDeps;
   ai?: AiJobDeps & VoiceJobDeps;
   automations?: AutomationJobDeps;
+  agents?: AgentJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -142,6 +145,7 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     ...(m.automations
       ? [automationRunHandler(m.automations), automationSweepHandler(m.automations)]
       : []),
+    ...(m.agents ? [agentConnectorTestHandler(m.agents)] : []),
   ];
 }
 

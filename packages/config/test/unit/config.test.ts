@@ -302,6 +302,19 @@ describe('server configuration', () => {
       automationSweepBatchMax: 100,
       automationAlertFailureThreshold: 3,
       automationAlertIntervalMinutes: 1440,
+      agentProfilesPerWorkspaceMax: 100,
+      agentInstructionsMaxChars: 8000,
+      agentScopeGrantsMax: 50,
+      agentToolGrantsMax: 20,
+      agentConfigBytesMax: 32768,
+      agentAssignmentsPerTaskMax: 5,
+      agentContextRefsMax: 20,
+      agentCriteriaMax: 20,
+      agentAssignmentTextMaxChars: 4000,
+      agentConnectorTimeoutMs: 10000,
+      agentConnectorResponseMaxBytes: 65536,
+      agentConnectorTestsPerHour: 20,
+      agentConnectorTransport: 'none',
       webhookAllowLoopback: true,
       documentEmbedUrlMaxChars: 2048,
       signedUrlLifetimeSeconds: 300,
@@ -415,6 +428,60 @@ describe('server configuration', () => {
         }),
       ),
     ).toContain('DATABASE_WORKER_URL: must authenticate as role app_worker');
+  });
+
+  it('agent limits (8B, 0D PL-54): conservative defaults, hard maximums, and the fixture transport refused when deployed', () => {
+    for (const [name, max] of [
+      ['AGENT_PROFILES_PER_WORKSPACE_MAX', 1000],
+      ['AGENT_INSTRUCTIONS_MAX_CHARS', 32000],
+      ['AGENT_SCOPE_GRANTS_MAX', 500],
+      ['AGENT_TOOL_GRANTS_MAX', 50],
+      ['AGENT_CONFIG_BYTES_MAX', 65536],
+      ['AGENT_ASSIGNMENTS_PER_TASK_MAX', 20],
+      ['AGENT_CONTEXT_REFS_MAX', 100],
+      ['AGENT_CRITERIA_MAX', 50],
+      ['AGENT_ASSIGNMENT_TEXT_MAX_CHARS', 4000],
+      ['AGENT_CONNECTOR_TIMEOUT_MS', 30000],
+      ['AGENT_CONNECTOR_RESPONSE_MAX_BYTES', 1048576],
+      ['AGENT_CONNECTOR_TESTS_PER_HOUR', 200],
+    ] as const) {
+      expect(
+        issues(() =>
+          loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max + 1) } }),
+        )[0],
+        name,
+      ).toMatch(new RegExp(`^${name}`));
+      expect(
+        issues(() =>
+          loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max) } }),
+        ),
+        name,
+      ).toEqual([]);
+    }
+    expect(
+      loadServerConfig({
+        service: 'worker',
+        env: { ...local, AGENT_CONNECTOR_TRANSPORT: 'fixture' },
+      }).work.agentConnectorTransport,
+    ).toBe('fixture');
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'worker',
+          env: { ...local, AGENT_CONNECTOR_TRANSPORT: 'live' },
+        }),
+      )[0],
+    ).toMatch(/^AGENT_CONNECTOR_TRANSPORT/);
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'worker',
+          env: deployed('staging', { AGENT_CONNECTOR_TRANSPORT: 'fixture' }),
+        }),
+      ),
+    ).toContain(
+      'AGENT_CONNECTOR_TRANSPORT: the agent connector fixture is refused in deployed environments',
+    );
   });
 
   it('a complete production configuration fails only on the identity vendors not yet approved', () => {

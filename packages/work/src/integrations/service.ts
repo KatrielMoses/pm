@@ -1262,6 +1262,29 @@ export class IntegrationService extends ReportService {
     return rows.map((r) => this.#loaded(r));
   }
 
+  /**
+   * 8B: whether a person can see a connection now (an agent integration grant needs it). A
+   * visible connection grants nothing behind it: its records keep their own authorization.
+   */
+  protected async connectionVisibleTo(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    id: string,
+  ): Promise<{ id: string; publicId: string; name: string } | null> {
+    const row = await this.#byId(tx, id);
+    if (!row || row.disconnectedAt || !canView(p, row.facts)) return null;
+    return { id: row.id, publicId: row.publicId, name: row.displayName };
+  }
+
+  /** 8B: a connection's internal id by its public id (null when absent). */
+  protected async connectionIdOf(
+    tx: WorkspaceTransaction,
+    publicId: string,
+  ): Promise<string | null> {
+    const rows = await this.#loadAll(tx);
+    return rows.find((r) => r.publicId === publicId)?.id ?? null;
+  }
+
   async #byId(tx: WorkspaceTransaction, id: string): Promise<Loaded | null> {
     const rows = await this.#loadAll(tx);
     return rows.find((r) => r.id === id) ?? null;

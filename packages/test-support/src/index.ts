@@ -10,3 +10,4 @@ export * from './ai-provider-fixture.ts';
 export * from './ai-action-fixture.ts';
 export * from './voice-fixture.ts';
 export * from './effect-receiver-fixture.ts';
+export * from './agent-connector-fixture.ts';

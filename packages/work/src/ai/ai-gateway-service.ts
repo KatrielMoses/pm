@@ -677,6 +677,22 @@ export class AiGatewayService extends McpAccessService {
     };
   }
 
+  /**
+   * 8B: an internal agent profile's model through the same gate as every AI run: the workspace
+   * policy with the profile's model in place of the workspace default. Availability only; it
+   * reserves nothing, sends nothing, and starts no run (agent runs are 8C).
+   */
+  protected async agentModelAvailability(tx: WorkspaceTransaction, modelKey: string | null) {
+    const policy = await this.#policy(tx);
+    const entitled = await this.#ai.entitlements.aiAllowed(tx.workspaceId);
+    return decideAvailability(
+      this.#ai.config,
+      policy ? { ...policy, modelKey } : null,
+      entitled,
+      this.#models,
+    );
+  }
+
   async #availability(tx: WorkspaceTransaction) {
     const policy = await this.#policy(tx);
     const entitled = await this.#ai.entitlements.aiAllowed(tx.workspaceId);

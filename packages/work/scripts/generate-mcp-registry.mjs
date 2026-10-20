@@ -59,22 +59,79 @@ export function scopesAllowResource(held: readonly string[], resource: McpResour
   return resource.requiredScopes.some((scope) => held.includes(scope));
 }
 `;
-const prettierOptions = (await resolveConfig(outputPath)) ?? {};
-const formatted = await format(body, { ...prettierOptions, filepath: outputPath });
+// 8B (0D PL-54): the agent tool registry, generated from its contract next to the MCP registry.
+const agentSourcePath = resolve(root, 'docs/architecture/platform/contracts/agent-tools.json');
+const agentOutputPath = resolve(root, 'packages/work/src/agents/tool-registry.ts');
+const agentRegistry = JSON.parse(readFileSync(agentSourcePath, 'utf8'));
+const agentBody = `// GENERATED FILE - do not edit by hand.
+// Source: docs/architecture/platform/contracts/agent-tools.json
+// Regenerate: pnpm mcp:contracts:generate
+export const AGENT_PROTOCOL = ${JSON.stringify(agentRegistry.protocol)};
+export const AGENT_TOOL_REGISTRY_VERSION = ${JSON.stringify(agentRegistry.registry_version)};
 
-if (process.argv.includes('--check')) {
-  let current = '';
-  try {
-    current = readFileSync(outputPath, 'utf8');
-  } catch {
-    // Missing output is stale.
-  }
-  if (current !== formatted) {
-    process.stderr.write('MCP registry output is stale. Run: pnpm mcp:contracts:generate\n');
-    process.exit(1);
-  }
-  process.stdout.write('MCP registry: generated contract is up to date\n');
-} else {
-  writeFileSync(outputPath, formatted);
-  process.stdout.write(`MCP registry: wrote ${outputPath}\n`);
+export type AgentToolClass =
+  | 'read_records'
+  | 'draft_content'
+  | 'create_subtasks'
+  | 'attach_artifacts'
+  | 'update_records'
+  | 'run_tests'
+  | 'code_change'
+  | 'external_message'
+  | 'publish'
+  | 'spend'
+  | 'access_change'
+  | 'destructive'
+  | 'production_change'
+  | 'scope_expansion';
+
+export interface AgentToolDef {
+  name: string;
+  version: string;
+  tool_class: AgentToolClass;
+  status: 'available' | 'unavailable';
+  owner?: string;
+  operation: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
 }
+
+function freezeAll<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) freezeAll(child);
+  }
+  return value;
+}
+
+export const AGENT_TOOLS: readonly AgentToolDef[] = freezeAll(${JSON.stringify(agentRegistry.tools, null, 2)});
+
+/** A registered tool at an exact version (never a model- or connector-supplied name). */
+export function agentTool(name: unknown, version: unknown): AgentToolDef | undefined {
+  return AGENT_TOOLS.find((tool) => tool.name === name && tool.version === version);
+}
+`;
+
+async function emit(path, text, label, command) {
+  const options = (await resolveConfig(path)) ?? {};
+  const formatted = await format(text, { ...options, filepath: path });
+  if (process.argv.includes('--check')) {
+    let current = '';
+    try {
+      current = readFileSync(path, 'utf8');
+    } catch {
+      // Missing output is stale.
+    }
+    if (current !== formatted) {
+      process.stderr.write(`${label} output is stale. Run: ${command}\n`);
+      process.exit(1);
+    }
+    process.stdout.write(`${label}: generated contract is up to date\n`);
+  } else {
+    writeFileSync(path, formatted);
+    process.stdout.write(`${label}: wrote ${path}\n`);
+  }
+}
+
+await emit(outputPath, body, 'MCP registry', 'pnpm mcp:contracts:generate');
+await emit(agentOutputPath, agentBody, 'Agent tool registry', 'pnpm mcp:contracts:generate');

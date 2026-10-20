@@ -345,6 +345,15 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'automation.standing_approval',
       'automation.trigger_schedule',
       'automation.usage_period',
+      // Phase 8B agent profiles, connectors, and task assignments.
+      'agents.agent_profile',
+      'agents.agent_profile_revision',
+      'agents.agent_scope_grant',
+      'agents.agent_tool_grant',
+      'agents.agent_connector',
+      'agents.agent_connector_test',
+      'agents.agent_assignment',
+      'agents.agent_assignment_revision',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),

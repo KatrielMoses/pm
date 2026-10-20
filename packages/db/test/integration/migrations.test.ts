@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, the Phase 7 integration boundary 0060, the effect-recovery boundary 0061, the 8A automation boundary 0062, and the 8A review 01 checkpoint boundary 0063 to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, the Phase 7 integration boundary 0060, the effect-recovery boundary 0061, the 8A automation boundary 0062, the 8A review 01 checkpoint boundary 0063, and the 8B agent boundary 0064 to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -126,11 +126,13 @@ describe('migrations from an empty database', () => {
     // adds 0061 (effect claims, typed not-sent proof, unknown reasons, late evidence); 8A adds 0062
     // (automations, immutable revisions, runs and step runs, standing approvals, trigger schedules,
     // usage periods, the automation notice type, and the automation AI caller); 8A corrective
-    // review 01 adds 0063 (automation checkpoints keep references only; data, no catalog change).
+    // review 01 adds 0063 (automation checkpoints keep references only; data, no catalog change); 8B adds
+    // 0064 (agent profiles, revisions, scope and tool grants, connectors, connector tests, and task
+    // agent assignments with their revisions).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
       39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
-      62, 63,
+      62, 63, 64,
     ];
     // Functions and triggers are compared from the last Phase 6 boundary on (the Phase 7 steps).
     // Earlier accepted steps are compared on tables, constraints, grants, and policies only: the
@@ -183,7 +185,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped, to >= DEEP_FROM));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(63)).toEqual(await full(reference));
+      expect(at.get(64)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {
@@ -735,6 +737,50 @@ describe('applied-migration boundary: 0061 classifies attempted effects as unkno
       'cancelled',
     ]);
     await migrator(db).up();
+    expect((await migrator(db).status()).report.problems).toEqual([]);
+  });
+});
+
+describe('applied-migration boundary: 0064 agent profiles refuse a destructive rollback (8B)', () => {
+  let db: TestDatabase;
+  beforeAll(async () => {
+    db = await createEmptyTestDatabase();
+  });
+  afterAll(async () => {
+    await db.drop();
+  });
+
+  it('rolls back to the exact 0063 catalog when empty and refuses, with counts, while any agent profile exists', async () => {
+    await migrator(db).up({ to: 63 });
+    await migrator(db).up({ to: 64 });
+    expect((await migrator(db).status()).report.problems).toEqual([]);
+    // An empty 0064 reverses cleanly and re-applies.
+    await migrator(db).down(63);
+    expect(
+      (await db.admin(`SELECT count(*)::int AS n FROM pg_namespace WHERE nspname = 'agents'`))
+        .rows[0].n,
+    ).toBe(0);
+    await migrator(db).up({ to: 64 });
+    // A configured agent (inserted without its envelope: only the rollback guard is under test).
+    const ws = newUuidV7();
+    await db.admin(`SET session_replication_role = replica;
+      INSERT INTO agents.agent_profile (id, workspace_id, scope_key, kind, name, owner_membership_id, draft, created_by_membership_id)
+      VALUES ('${newUuidV7()}', '${ws}', '${ws}', 'internal', 'Synthetic agent', '${newUuidV7()}', '{}'::jsonb, '${newUuidV7()}');
+      SET session_replication_role = origin;`);
+    await expect(migrator(db).down(63)).rejects.toThrow(
+      /0064 cannot be rolled back: 1 agent profile\(s\), 0 agent assignment\(s\)/,
+    );
+    // The refusal changed nothing: the profile and forced row-level security remain.
+    expect((await db.admin(`SELECT count(*)::int AS n FROM agents.agent_profile`)).rows[0].n).toBe(
+      1,
+    );
+    expect(
+      (
+        await db.admin(
+          `SELECT relforcerowsecurity FROM pg_class WHERE oid = 'agents.agent_profile'::regclass`,
+        )
+      ).rows,
+    ).toEqual([{ relforcerowsecurity: true }]);
     expect((await migrator(db).status()).report.problems).toEqual([]);
   });
 });

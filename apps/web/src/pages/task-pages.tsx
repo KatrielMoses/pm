@@ -1,4 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 import { DELIVERABLE_TYPES, LABEL_COLORS, PROJECT_PRIORITIES } from '@pm/contracts/shell';
 import { plainFromRichText, richTextFromPlain } from '@pm/contracts/rich-text';
 import { ApiError } from '../api.ts';
@@ -47,6 +56,11 @@ import { ReviewedChange } from './people-pages.tsx';
 import { RecurrenceEditor, richTextHash, StatusBadge, useCommand } from './project-pages.tsx';
 import { FavoriteToggle } from './shell-pages.tsx';
 import { OtherIssues, SaveProblem, splitIssues } from './workspace-pages.tsx';
+
+// 8B: the task Agent section loads with the agent pages, on first use.
+const TaskAgentSection = lazy(() =>
+  import('../agents/pages.tsx').then((m) => ({ default: m.TaskAgentSection })),
+);
 
 /**
  * Phase 2B tasks (0E Phase 2B note): the project Tasks section (paged list and keyboard hierarchy
@@ -859,6 +873,11 @@ function TaskBody({
         <SubtasksSection ws={ws} task={task} detail={detail} reload={reload} />
       ) : null}
       {!task.shared_only ? <PeopleAndLabels ws={ws} task={task} reload={reload} /> : null}
+      {!task.shared_only ? (
+        <Suspense fallback={null}>
+          <TaskAgentSection ws={ws} task={task.id} />
+        </Suspense>
+      ) : null}
       {!task.shared_only ? (
         <LinksSection ws={ws} task={task} detail={detail} reload={reload} />
       ) : null}

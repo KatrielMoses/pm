@@ -3910,6 +3910,132 @@ export interface AutomationUsagePeriodTable {
   updated_at: DTs;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Phase 8B agent profiles, connectors, and assignments (migration 0064)
+// ---------------------------------------------------------------------------------------------
+export interface AgentProfileTable {
+  id: string;
+  workspace_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  kind: string;
+  name: string;
+  purpose: string | null;
+  owner_membership_id: string;
+  state: Defaulted<string>;
+  active_revision_id: string | null;
+  activated_at: Timestamp | null;
+  draft: Json<unknown>;
+  draft_base_revision: number | null;
+  template_key: string | null;
+  duplicated_from_id: string | null;
+  suspended_reason: string | null;
+  suspended_at: Timestamp | null;
+  created_by_membership_id: string;
+  updated_by_membership_id: string | null;
+  created_at: DefaultTimestamp;
+  updated_at: DefaultTimestamp;
+  version: Defaulted<number>;
+}
+export interface AgentProfileRevisionTable {
+  id: string;
+  workspace_id: string;
+  profile_id: string;
+  revision_number: number;
+  schema_version: number;
+  kind: string;
+  config: Json<unknown>;
+  config_hash: string;
+  model_key: string | null;
+  created_by_membership_id: string;
+  created_at: DefaultTimestamp;
+}
+export interface AgentScopeGrantTable {
+  id: string;
+  workspace_id: string;
+  revision_id: string;
+  kind: string;
+  target_id: string;
+}
+export interface AgentToolGrantTable {
+  id: string;
+  workspace_id: string;
+  revision_id: string;
+  tool: string;
+  tool_version: string;
+  tool_class: string;
+  approval_class: string;
+}
+export interface AgentConnectorTable {
+  id: string;
+  workspace_id: string;
+  profile_id: string;
+  kind: string;
+  endpoint_url: string;
+  secret_ref: string | null;
+  config_version: Defaulted<number>;
+  state: Defaulted<string>;
+  verified_version: number | null;
+  verified_at: Timestamp | null;
+  verified_synthetic: Defaulted<boolean>;
+  capabilities: Json<unknown> | null;
+  last_code: string | null;
+  last_tested_at: Timestamp | null;
+  disconnected_at: Timestamp | null;
+  created_by_membership_id: string;
+  updated_by_membership_id: string | null;
+  created_at: DefaultTimestamp;
+  updated_at: DefaultTimestamp;
+  version: Defaulted<number>;
+}
+export interface AgentConnectorTestTable {
+  id: string;
+  workspace_id: string;
+  connector_id: string;
+  operation_id: string;
+  config_version: number;
+  requested_by_membership_id: string;
+  state: Defaulted<string>;
+  code: string | null;
+  synthetic: Defaulted<boolean>;
+  duration_ms: number | null;
+  created_at: DefaultTimestamp;
+  ended_at: Timestamp | null;
+}
+export interface AgentAssignmentTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  task_id: string;
+  profile_id: string;
+  state: Defaulted<string>;
+  current_revision_id: string | null;
+  assigned_by_membership_id: string;
+  withdrawn_by_membership_id: string | null;
+  withdrawn_at: Timestamp | null;
+  created_at: DefaultTimestamp;
+  updated_at: DefaultTimestamp;
+  version: Defaulted<number>;
+}
+export interface AgentAssignmentRevisionTable {
+  id: string;
+  workspace_id: string;
+  assignment_id: string;
+  revision_number: number;
+  profile_revision_id: string;
+  assigner_membership_id: string;
+  goal: string;
+  constraints: string | null;
+  deliverable: string | null;
+  criteria: ColumnType<unknown, string | undefined, string>;
+  context_refs: Defaulted<string[]>;
+  scope_brand_ids: Defaulted<string[]>;
+  scope_project_ids: Defaulted<string[]>;
+  scope_record_ids: Defaulted<string[]>;
+  scope_integration_ids: Defaulted<string[]>;
+  created_at: DefaultTimestamp;
+}
+
 export interface Database {
   'files.file_object': FileObjectTable;
   'files.file': FileTable;
@@ -4127,6 +4253,14 @@ export interface Database {
   'automation.standing_approval': StandingApprovalTable;
   'automation.trigger_schedule': TriggerScheduleTable;
   'automation.usage_period': AutomationUsagePeriodTable;
+  'agents.agent_profile': AgentProfileTable;
+  'agents.agent_profile_revision': AgentProfileRevisionTable;
+  'agents.agent_scope_grant': AgentScopeGrantTable;
+  'agents.agent_tool_grant': AgentToolGrantTable;
+  'agents.agent_connector': AgentConnectorTable;
+  'agents.agent_connector_test': AgentConnectorTestTable;
+  'agents.agent_assignment': AgentAssignmentTable;
+  'agents.agent_assignment_revision': AgentAssignmentRevisionTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -7495,5 +7629,121 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'steps_executed',
     'alerted_bp',
     'updated_at',
+  ],
+  'agents.agent_profile': [
+    'id',
+    'workspace_id',
+    'scope_key',
+    'lifecycle_state',
+    'kind',
+    'name',
+    'purpose',
+    'owner_membership_id',
+    'state',
+    'active_revision_id',
+    'activated_at',
+    'draft',
+    'draft_base_revision',
+    'template_key',
+    'duplicated_from_id',
+    'suspended_reason',
+    'suspended_at',
+    'created_by_membership_id',
+    'updated_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'agents.agent_profile_revision': [
+    'id',
+    'workspace_id',
+    'profile_id',
+    'revision_number',
+    'schema_version',
+    'kind',
+    'config',
+    'config_hash',
+    'model_key',
+    'created_by_membership_id',
+    'created_at',
+  ],
+  'agents.agent_scope_grant': ['id', 'workspace_id', 'revision_id', 'kind', 'target_id'],
+  'agents.agent_tool_grant': [
+    'id',
+    'workspace_id',
+    'revision_id',
+    'tool',
+    'tool_version',
+    'tool_class',
+    'approval_class',
+  ],
+  'agents.agent_connector': [
+    'id',
+    'workspace_id',
+    'profile_id',
+    'kind',
+    'endpoint_url',
+    'secret_ref',
+    'config_version',
+    'state',
+    'verified_version',
+    'verified_at',
+    'verified_synthetic',
+    'capabilities',
+    'last_code',
+    'last_tested_at',
+    'disconnected_at',
+    'created_by_membership_id',
+    'updated_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'agents.agent_connector_test': [
+    'id',
+    'workspace_id',
+    'connector_id',
+    'operation_id',
+    'config_version',
+    'requested_by_membership_id',
+    'state',
+    'code',
+    'synthetic',
+    'duration_ms',
+    'created_at',
+    'ended_at',
+  ],
+  'agents.agent_assignment': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'task_id',
+    'profile_id',
+    'state',
+    'current_revision_id',
+    'assigned_by_membership_id',
+    'withdrawn_by_membership_id',
+    'withdrawn_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'agents.agent_assignment_revision': [
+    'id',
+    'workspace_id',
+    'assignment_id',
+    'revision_number',
+    'profile_revision_id',
+    'assigner_membership_id',
+    'goal',
+    'constraints',
+    'deliverable',
+    'criteria',
+    'context_refs',
+    'scope_brand_ids',
+    'scope_project_ids',
+    'scope_record_ids',
+    'scope_integration_ids',
+    'created_at',
   ],
 };

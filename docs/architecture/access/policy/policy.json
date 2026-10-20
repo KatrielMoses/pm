@@ -2819,9 +2819,14 @@
       },
       "requirements": [
         "AGT-001",
-        "AGT-002"
+        "AGT-002",
+        "AGT-005",
+        "AGT-006",
+        "AGT-007",
+        "AGT-008",
+        "PERM-008"
       ],
-      "notes": ""
+      "notes": "8B (AZ-52): also editing, activation, duplication, reassignment, lifecycle, and connector configuration, tests, and disconnection; the configurer and the accountable owner both need grantable authority for every scope item at the level its tool classes need. Session-only: no token scope carries it, and completed keys never replay for a delegated caller."
     },
     {
       "key": "automations.configure",
@@ -3438,9 +3443,11 @@
       },
       "requirements": [
         "AGT-003",
-        "LA-008"
+        "AGT-004",
+        "LA-008",
+        "TSK-008"
       ],
-      "notes": ""
+      "notes": "8B (AZ-52): assignment, preview, edit, and withdrawal on the task (edit level, no record shares). The stored ceiling is the pinned profile grants ∩ the assigner's access ∩ the explicit scope ∩ the owner's authority, and only narrows. A token needs agents:execute. Starting runs is 8C."
     },
     {
       "key": "agent.run_control",

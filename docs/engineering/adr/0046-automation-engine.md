@@ -1,6 +1,6 @@
 # ADR-0046: Versioned, permission-safe automation engine (Phase 8A)
 
-Status: **proposed** (implemented; candidate for architect review; not self-accepted).
+Status: **accepted** (engineering scope: the architect accepted Phase 8A with corrective review 01 (R1–R3 closed) at head `802c026` (`802c0265ca2a40e50fc5fea35b866c895c00fe10`), CI run 39401581014 attempt 1, draft PR #44: four required shards passed; 967 unit/component, 1108 integration, 6 process smoke, 286 browser; recorded here by the 8B brief; not production approval: no exactly-once delivery is claimed, P8-W0 stays accepted on its own terms, and every production and manual boundary below stays open. Deployment restriction: once migration 0063 has cleaned `automation.run` checkpoints, they must never be run by a pre-correction (8A candidate) worker; upgrade every worker before or with 0063).
 Date: 2026-10-20. Brief P8-W1 (Phase 8A). Base: accepted P8-W0 head `0c25983` (`0c259833f0037e341f89c2221c6dee537ffd042b`, CI run 39234366133 attempt 1; the acceptance is recorded in ADR-0045). Migrations 0001–0061 unchanged; this adds `0062_automation_engine`.
 
 ## Context

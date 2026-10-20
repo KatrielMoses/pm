@@ -5236,3 +5236,58 @@ nav.tabs a[aria-current='page'] {
     border-bottom: 1px solid CanvasText;
   }
 }
+
+/* ---- Phase 8B agents: profiles, connector, and the task Agent section (UXD-33) -------------
+   Built on the 8A form patterns: labelled fields and buttons only, rows that wrap to 320px and
+   200% zoom, status as text plus shape (never colour alone), and no motion. */
+.ag-check {
+  display: flex;
+  gap: var(--space-1);
+  align-items: flex-start;
+  min-height: 2.75rem;
+  overflow-wrap: anywhere;
+}
+.ag-check input {
+  margin-block-start: 0.25em;
+  flex: none;
+}
+.ag-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ag-buttons .button,
+.ag-task .button {
+  min-height: 2.75rem;
+}
+.ag-scope {
+  padding-inline-start: var(--space-3);
+  overflow-wrap: anywhere;
+}
+.ag-task,
+.ag-assignment,
+.ag-preview {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.ag-assignment {
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.ag-secret {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.ag-task textarea,
+.au-section textarea {
+  max-width: 100%;
+  width: 100%;
+}
+@media (forced-colors: active) {
+  .ag-assignment {
+    border-bottom: 1px solid CanvasText;
+  }
+}

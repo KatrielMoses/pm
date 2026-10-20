@@ -5084,7 +5084,7 @@ Agent profiles, scope and tool grants, connectors, assignments, runs, tool calls
 <a id="entity-agent-profile"></a>
 ### `agent_profile`
 
-Agent definition: purpose, kind (internal|external), model, instructions, limits, approval policy.
+Agent definition: accountable human owner, kind (internal|external), name and purpose, an editable typed draft, and the selected immutable revision (instructions, model reference, limits, approval policy).
 
 | Property | Value |
 |---|---|
@@ -5097,9 +5097,31 @@ Agent definition: purpose, kind (internal|external), model, instructions, limits
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `accountable_owner_membership_id`; `suspended_reason (owner_authority\|owner_departed\|admin) null`; `suspended_at null` |
+| Key typed columns | `accountable_owner_membership_id (stored as owner_membership_id; never a fabricated member for the agent)`; `kind (internal\|external), immutable after creation`; `state (draft\|active\|disabled\|suspended)`; `active_revision_id null (deferrable reference to the selected immutable revision)`; `draft jsonb (typed, bounded configuration; edits never touch the active revision)`; `template_key null, duplicated_from_id null (no credential, grant, or approval is copied)`; `suspended_reason (owner_authority\|owner_departed\|admin) null`; `suspended_at null`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | AGT-001, AGT-002, AGT-006, AGT-007 |
+| Requirements | AGT-001, AGT-002, AGT-006, AGT-007, AGT-008, ONB-013 |
+| Notes | Phase 8B (ADR-52): a core.record extension in the agents schema (workspace scope). Readiness (model, connector, owner) is derived on read, never stored. |
+
+<a id="entity-agent-profile-revision"></a>
+### `agent_profile_revision`
+
+Immutable validated profile configuration (instructions, model reference, limits, approval policy) with its relational scope and tool grants; assignments pin it.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`agent_profile`](logical-model.md#entity-agent-profile) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `versioned-immutable` / `append-only` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `low` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(profile_id, revision_number)`; `(profile_id, config_hash)` |
+| Key typed columns | `revision_number`; `schema_version`; `kind`; `config jsonb (canonical)`; `config_hash`; `model_key null`; `created_by_membership_id` |
+| Sensitive fields | — |
+| Requirements | AGT-002, AGT-005, PERM-008 |
+| Notes | Phase 8B (ADR-52): a trigger refuses updates; editing a profile adds a revision and never broadens an assignment's pinned revision. |
 
 <a id="entity-agent-scope-grant"></a>
 ### `agent_scope_grant`
@@ -5109,17 +5131,18 @@ Explicit brands, projects, records, and integrations an agent may use.
 | Property | Value |
 |---|---|
 | Scope | `workspace` |
-| Contained by | [`agent_profile`](logical-model.md#entity-agent-profile) |
+| Contained by | [`agent_profile_revision`](logical-model.md#entity-agent-profile-revision) |
 | Extends (1:1) | — |
 | Associations | [`brand`](logical-model.md#entity-brand), [`project`](logical-model.md#entity-project), [`connection`](logical-model.md#entity-connection) |
-| Lifecycle / concurrency | `mutable` / `row-version` |
+| Lifecycle / concurrency | `versioned-immutable` / `append-only` |
 | Retention / confidentiality | `R-AUDIT` / `C1` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(revision_id, kind, target_id)` |
+| Key typed columns | `revision_id (immutable, per profile revision)`; `kind (brand\|project\|record\|integration)`; `target_id` |
 | Sensitive fields | — |
 | Requirements | AGT-005, PERM-008 |
+| Notes | Phase 8B (ADR-52): explicit scope; an empty grant set means nothing, never all. Selecting a project or an integration never grants the records behind it. |
 
 <a id="entity-agent-tool-grant"></a>
 ### `agent_tool_grant`
@@ -5129,17 +5152,18 @@ Tools and action classes an agent may invoke, with approval requirement per clas
 | Property | Value |
 |---|---|
 | Scope | `workspace` |
-| Contained by | [`agent_profile`](logical-model.md#entity-agent-profile) |
+| Contained by | [`agent_profile_revision`](logical-model.md#entity-agent-profile-revision) |
 | Extends (1:1) | — |
 | Associations | — |
-| Lifecycle / concurrency | `mutable` / `row-version` |
+| Lifecycle / concurrency | `versioned-immutable` / `append-only` |
 | Retention / confidentiality | `R-AUDIT` / `C1` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(revision_id, tool)` |
+| Key typed columns | `revision_id (immutable, per profile revision)`; `tool, tool_version (registered in agent-tools.json)`; `tool_class (0C agent tool class)`; `approval_class (never weaker than the class minimum; R3/R4 human_approval)` |
 | Sensitive fields | — |
-| Requirements | AGT-014, AGT-015, AGT-016 |
+| Requirements | AGT-005, AGT-014, AGT-015, AGT-016 |
+| Notes | Phase 8B (ADR-52): only registered versioned tools; unavailable tools (later phases) cannot be granted. |
 
 <a id="entity-agent-connector"></a>
 ### `agent_connector`
@@ -5156,10 +5180,32 @@ External agent endpoint (API, webhook, MCP) with secret reference.
 | Retention / confidentiality | `R-LIVE` / `C4` |
 | Volume / export / search-AI | `low` / `never` / `no` |
 | Secrets / personal data | `secret-ref` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(profile_id)` |
+| Key typed columns | `kind (api\|webhook\|mcp)`; `endpoint_url (guarded: https, no private ranges, never the product's own endpoints)`; `secret_ref null (vault reference only; no secret in configuration, checkpoints, logs, or exports)`; `config_version (each change makes earlier tests stale)`; `state (configured\|verified\|stale\|revoked\|unavailable)`; `verified_version, verified_at, verified_synthetic`; `capabilities jsonb (advertised ∩ registry ∩ grants; metadata, not authority)`; `last_code, last_tested_at, disconnected_at`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | AGT-007 |
+| Notes | Phase 8B (ADR-52): one connector per external profile; a synthetic fixture verification is labelled and never marks a live connector verified. |
+
+<a id="entity-agent-connector-test"></a>
+### `agent_connector_test`
+
+Operation detail of one confirmed connector handshake: the settings version it tested and its bounded outcome.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` |
+| Contained by | [`agent_connector`](logical-model.md#entity-agent-connector) |
+| Extends (1:1) | [`operation`](logical-model.md#entity-operation) |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `locked` |
+| Retention / confidentiality | `R-EXEC` / `C1` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(operation_id)` |
+| Key typed columns | `operation_id (agent_connector_test operation)`; `connector_id`; `config_version (bound at preparation; a changed version makes the result stale)`; `requested_by_membership_id`; `state (queued\|running\|passed\|failed\|stale\|refused)`; `code null (typed handshake outcome)`; `synthetic`; `duration_ms null, ended_at null` |
+| Sensitive fields | — |
+| Requirements | AGT-007 |
+| Notes | Phase 8B (ADR-52): only protocol metadata and a nonce are sent; never task context, instructions, scope, or assignments. A pass proves protocol compatibility only. |
 
 <a id="entity-agent-assignment"></a>
 ### `agent_assignment`
@@ -5176,10 +5222,32 @@ Assignment of a task to an agent with structured context snapshot and run scope 
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(task_id, agent_profile_id) where active` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(task_id, profile_id) where state = 'assigned'` |
+| Key typed columns | `task_id, brand_id (the task's brand)`; `profile_id`; `state (assigned\|withdrawn; blocked is derived on read)`; `current_revision_id (immutable assignment revision)`; `assigned_by_membership_id, withdrawn_by_membership_id null, withdrawn_at null`; `version bigint` |
+| Sensitive fields | — |
+| Requirements | AGT-003, AGT-004, TSK-008, LA-008 |
+| Notes | Phase 8B (ADR-52): separate from human assignees; it never changes task status. Execution belongs to 8C. |
+
+<a id="entity-agent-assignment-revision"></a>
+### `agent_assignment_revision`
+
+Immutable assignment brief and stored scope ceiling: goal, constraints, deliverable, criteria, context references, the pinned profile revision, and the assigner.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`agent_assignment`](logical-model.md#entity-agent-assignment) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `versioned-immutable` / `append-only` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `medium` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(assignment_id, revision_number)` |
+| Key typed columns | `revision_number`; `profile_revision_id (pinned)`; `assigner_membership_id`; `goal, constraints null, deliverable null (bounded text)`; `criteria jsonb (bounded list)`; `context_refs uuid[] (references only; values are read on authorized demand)`; `scope_brand_ids, scope_project_ids, scope_record_ids, scope_integration_ids uuid[] (the ceiling; current authority only narrows it)` |
 | Sensitive fields | — |
 | Requirements | AGT-003, AGT-004, TSK-008 |
+| Notes | Phase 8B (ADR-52): a trigger refuses updates; widening needs a new explicit revision. |
 
 <a id="entity-agent-run"></a>
 ### `agent_run`

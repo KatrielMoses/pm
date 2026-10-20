@@ -630,3 +630,25 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - The down migration restores the exact 0061 catalog and refuses while any run is open, any automation notice exists, or any AI action has the automation caller (forced row-level security lifted for that one check).
   - Workspace purge deletes step runs, runs, standing approvals, schedules, usage periods, revisions, and automations before `exec.operation` and `core.record`.
 - **Corrective review 01 (Phase 8A):** migration 0063 (expand, data only) removes the prepared webhook payload, subscription, and fingerprint that the 8A candidate stored in `automation.run` job checkpoints; the step and its logical effect key stay, and no effect, attempt, claim, or decision changes. Forced row-level security on `exec.job` is lifted for that one statement and restored. The down migration restores the exact 0062 catalog and does not put content back.
+
+<a id="adr-52"></a>
+## ADR-52: Agent profiles, revisions, grants, connectors, connector tests, and task assignments (Phase 8B)
+
+- **Decision:** Migration 0064 (expand) reconciles the 0B agent entities into the `agents` schema. It changes no earlier file.
+  - `agents.agent_profile` (`agt_`) extends `core.record` through the record envelope (workspace scope). It holds the accountable human owner (`owner_membership_id`; an agent is never a member or an account), the kind (`internal`, `external`; fixed at creation), the name and purpose, the state (`draft`, `active`, `disabled`, `suspended` with `owner_departed`, `owner_authority`, or `admin`), the selected `active_revision_id` (a deferrable reference), the editable typed `draft`, and the template or duplicate it came from. Readiness (owner, model, connector) is derived on read and never stored.
+  - `agents.agent_profile_revision` is immutable (a trigger refuses updates): the canonical configuration (instructions, model reference, limits, approval policy) and its hash, one revision per hash. Assignments pin a revision, so editing a profile never broadens an existing assignment.
+  - `agents.agent_scope_grant` (brand, project, record, integration) and `agents.agent_tool_grant` (registered tool and version, its 0C tool class, and an approval class never weaker than the class minimum; R3 and R4 are always `human_approval`) are relational and immutable per revision. An empty scope means nothing.
+  - `agents.agent_connector`: one per external profile (`api`, `webhook`, `mcp`), the guarded endpoint, a secret-store reference only, the settings version, the state (`configured`, `verified`, `stale`, `revoked`, `unavailable`), the verified version and whether that verification was synthetic, and the intersected capabilities (metadata, not authority).
+  - `agents.agent_connector_test` is the detail of an `agent_connector_test` operation: the settings version it tested, the requester, and the bounded typed outcome.
+  - `agents.agent_assignment` (task child, the task's brand) is separate from human assignees: the profile, `assigned` or `withdrawn` (blocked is derived), the current immutable `agents.agent_assignment_revision`, and the assigner and withdrawer. One active assignment per task and profile.
+  - `agents.agent_assignment_revision` is immutable: the goal, constraints, deliverable, criteria, context references (never copied content), the pinned profile revision, the assigner, and the stored scope ceiling (brands, projects, records, integrations) that current authority only narrows.
+  - All tables have forced row-level security on `exec.current_workspace_id()` and tenant foreign keys. `app_rw` gets column-scoped updates; `app_worker` updates only connector test results and profile suspension, and deletes for purge.
+- **Alternatives:**
+  - Grants as JSON on the profile, which could not be pinned, joined, or checked relationally.
+  - A mutable assignment row, which could silently widen what was confirmed.
+  - Storing the connector secret or the handshake answer body, which would keep credentials and untrusted content.
+- **Consequences:**
+  - The down migration restores the exact 0063 catalog and refuses, with counts, while any agent profile or assignment exists (forced row-level security lifted for that one check).
+  - Workspace purge deletes assignment revisions, assignments, connector tests, connectors, grants, revisions, and profiles before `exec.operation` and `core.record`; purge refuses while a connector still holds a secret reference.
+  - Agent runs, tool calls, and artifacts (`agent_run`, `agent_tool_call`) remain 8C.
+- **Corrective review 01 (Phase 8B):** no schema change. The stored ceiling on `agents.agent_assignment_revision` is history, as confirmed; the usable (live) ceiling is derived on every read from it, the pinned and current profile grants, and the assigner's and owner's current access, and is never stored.

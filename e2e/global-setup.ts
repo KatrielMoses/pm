@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import {
   generatePasswords,
   provisionDatabase,
+  startAgentConnectorFixture,
   startAiProviderFixture,
   startGoogleCalendarFixture,
   startPostgres,
@@ -30,6 +31,9 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   // spent). The real Messages adapter in the API and worker talks to it; workspaces still start
   // with AI off, so every other journey runs exactly as before.
   const ai = await startAiProviderFixture();
+  // 8B: deterministic local agent connector peers (synthetic; never a real agent). Connector tests
+  // in the API and worker reach them over loopback only because the fixture transport is on.
+  const agents = await startAgentConnectorFixture();
   const env = {
     PATH: process.env.PATH ?? '',
     ...testEnv(urls),
@@ -62,6 +66,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     TRANSCRIPTION_PROVIDER: 'fixture',
     TRANSCRIPTION_BASE_URL: ai.baseUrl,
     TRANSCRIPTION_API_KEY: ai.apiKey,
+    // 8B: the synthetic agent connector transport (refused when deployed).
+    AGENT_CONNECTOR_TRANSPORT: 'fixture',
     RATE_LIMIT_POLICIES: JSON.stringify({
       'sign_in.source': { limit: 10000, windowMs: 60000 },
       'sign_in.email': { limit: 10000, windowMs: 60000 },
@@ -83,6 +89,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.env.PM_E2E_GCAL_TOKEN = calendar.controlToken;
   process.env.PM_E2E_AI_URL = ai.baseUrl;
   process.env.PM_E2E_AI_TOKEN = ai.controlToken;
+  process.env.PM_E2E_AGENT_URL = agents.baseUrl;
+  process.env.PM_E2E_AGENT_TOKEN = agents.controlToken;
   const dist = process.env.PM_SMOKE_DIST === '1';
   const start = (app: string): ChildProcess =>
     spawn(
@@ -110,6 +118,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     );
     await calendar.close();
     await ai.close();
+    await agents.close();
     await server.stop();
   };
 }

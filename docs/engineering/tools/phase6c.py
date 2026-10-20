@@ -33,7 +33,7 @@ def check_chain():
     factory = read(P("packages/work/src/factory.ts"))
     if not any(
         "return new %s(" % service in factory
-        for service in ("CalendarService", "PortabilityService", "McpAccessService", "AiGatewayService", "AutomationService")
+        for service in ("CalendarService", "PortabilityService", "McpAccessService", "AiGatewayService", "AutomationService", "AgentService")
     ):
         errs.append("factory must return CalendarService or a later service-chain extension")
     if "export class CalendarService extends PublicApiService" not in read(

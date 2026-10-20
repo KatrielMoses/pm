@@ -357,6 +357,19 @@ export interface ServerConfig {
     automationSweepBatchMax: number;
     automationAlertFailureThreshold: number;
     automationAlertIntervalMinutes: number;
+    agentProfilesPerWorkspaceMax: number;
+    agentInstructionsMaxChars: number;
+    agentScopeGrantsMax: number;
+    agentToolGrantsMax: number;
+    agentConfigBytesMax: number;
+    agentAssignmentsPerTaskMax: number;
+    agentContextRefsMax: number;
+    agentCriteriaMax: number;
+    agentAssignmentTextMaxChars: number;
+    agentConnectorTimeoutMs: number;
+    agentConnectorResponseMaxBytes: number;
+    agentConnectorTestsPerHour: number;
+    agentConnectorTransport: 'none' | 'fixture';
     webhookConcurrencyPerDestination: number;
     webhookBodyMaxBytes: number;
     webhookDeliveryRetentionDays: number;
@@ -894,6 +907,19 @@ const DEFAULTS = {
   AUTOMATION_SWEEP_BATCH_MAX: '100',
   AUTOMATION_ALERT_FAILURE_THRESHOLD: '3',
   AUTOMATION_ALERT_INTERVAL_MINUTES: '1440',
+  AGENT_PROFILES_PER_WORKSPACE_MAX: '100',
+  AGENT_INSTRUCTIONS_MAX_CHARS: '8000',
+  AGENT_SCOPE_GRANTS_MAX: '50',
+  AGENT_TOOL_GRANTS_MAX: '20',
+  AGENT_CONFIG_BYTES_MAX: '32768',
+  AGENT_ASSIGNMENTS_PER_TASK_MAX: '5',
+  AGENT_CONTEXT_REFS_MAX: '20',
+  AGENT_CRITERIA_MAX: '20',
+  AGENT_ASSIGNMENT_TEXT_MAX_CHARS: '4000',
+  AGENT_CONNECTOR_TIMEOUT_MS: '10000',
+  AGENT_CONNECTOR_RESPONSE_MAX_BYTES: '65536',
+  AGENT_CONNECTOR_TESTS_PER_HOUR: '20',
+  AGENT_CONNECTOR_TRANSPORT: 'none',
   WEBHOOK_CONCURRENCY_PER_DESTINATION: '4',
   WEBHOOK_BODY_MAX_BYTES: '262144',
   WEBHOOK_DELIVERY_RETENTION_DAYS: '30',
@@ -1295,6 +1321,19 @@ const schema = z.object({
   AUTOMATION_SWEEP_BATCH_MAX: int(1, 1000),
   AUTOMATION_ALERT_FAILURE_THRESHOLD: int(1, 20),
   AUTOMATION_ALERT_INTERVAL_MINUTES: int(60, 10_080),
+  AGENT_PROFILES_PER_WORKSPACE_MAX: int(1, 1_000),
+  AGENT_INSTRUCTIONS_MAX_CHARS: int(100, 32_000),
+  AGENT_SCOPE_GRANTS_MAX: int(1, 500),
+  AGENT_TOOL_GRANTS_MAX: int(1, 50),
+  AGENT_CONFIG_BYTES_MAX: int(1_024, 65_536),
+  AGENT_ASSIGNMENTS_PER_TASK_MAX: int(1, 20),
+  AGENT_CONTEXT_REFS_MAX: int(0, 100),
+  AGENT_CRITERIA_MAX: int(1, 50),
+  AGENT_ASSIGNMENT_TEXT_MAX_CHARS: int(100, 4_000),
+  AGENT_CONNECTOR_TIMEOUT_MS: int(1_000, 30_000),
+  AGENT_CONNECTOR_RESPONSE_MAX_BYTES: int(1_024, 1_048_576),
+  AGENT_CONNECTOR_TESTS_PER_HOUR: int(1, 200),
+  AGENT_CONNECTOR_TRANSPORT: z.enum(['none', 'fixture']),
   WEBHOOK_CONCURRENCY_PER_DESTINATION: int(1, 50),
   WEBHOOK_BODY_MAX_BYTES: int(1024, 1048576),
   WEBHOOK_DELIVERY_RETENTION_DAYS: int(1, 365),
@@ -1801,6 +1840,12 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       transcriptMaxChars: c.VOICE_TRANSCRIPT_MAX_CHARS,
     },
   };
+  // 8B: the agent connector fixture is synthetic and refused when deployed; live connectors need an
+  // approved secret store and credentials (DQ-28), so none exists.
+  if (deployed && c.AGENT_CONNECTOR_TRANSPORT === 'fixture')
+    issues.push(
+      'AGENT_CONNECTOR_TRANSPORT: the agent connector fixture is refused in deployed environments',
+    );
   // 7F: the transcription fixture is synthetic and refused when deployed; no live provider exists.
   if (deployed && c.TRANSCRIPTION_PROVIDER === 'fixture')
     issues.push(
@@ -2162,6 +2207,19 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       automationSweepBatchMax: c.AUTOMATION_SWEEP_BATCH_MAX,
       automationAlertFailureThreshold: c.AUTOMATION_ALERT_FAILURE_THRESHOLD,
       automationAlertIntervalMinutes: c.AUTOMATION_ALERT_INTERVAL_MINUTES,
+      agentProfilesPerWorkspaceMax: c.AGENT_PROFILES_PER_WORKSPACE_MAX,
+      agentInstructionsMaxChars: c.AGENT_INSTRUCTIONS_MAX_CHARS,
+      agentScopeGrantsMax: c.AGENT_SCOPE_GRANTS_MAX,
+      agentToolGrantsMax: c.AGENT_TOOL_GRANTS_MAX,
+      agentConfigBytesMax: c.AGENT_CONFIG_BYTES_MAX,
+      agentAssignmentsPerTaskMax: c.AGENT_ASSIGNMENTS_PER_TASK_MAX,
+      agentContextRefsMax: c.AGENT_CONTEXT_REFS_MAX,
+      agentCriteriaMax: c.AGENT_CRITERIA_MAX,
+      agentAssignmentTextMaxChars: c.AGENT_ASSIGNMENT_TEXT_MAX_CHARS,
+      agentConnectorTimeoutMs: c.AGENT_CONNECTOR_TIMEOUT_MS,
+      agentConnectorResponseMaxBytes: c.AGENT_CONNECTOR_RESPONSE_MAX_BYTES,
+      agentConnectorTestsPerHour: c.AGENT_CONNECTOR_TESTS_PER_HOUR,
+      agentConnectorTransport: c.AGENT_CONNECTOR_TRANSPORT,
       webhookConcurrencyPerDestination: c.WEBHOOK_CONCURRENCY_PER_DESTINATION,
       webhookBodyMaxBytes: c.WEBHOOK_BODY_MAX_BYTES,
       webhookDeliveryRetentionDays: c.WEBHOOK_DELIVERY_RETENTION_DAYS,

@@ -206,6 +206,7 @@ Source: `contracts/registry.json`.
 | `proposal_apply` | ai.change_proposal | — | R1 |
 | `workspace_deletion` | governance.deletion_request | cancel | R4 |
 | `plan_proposal` | ai.change_proposal | — | R0 |
+| `agent_connector_test` | agents.agent_connector_test | — | R1 |
 
 ## Internal events
 
@@ -929,3 +930,16 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `AUTOMATION_SWEEP_BATCH_MAX` | Technical automation limit: workspaces visited, and due date and schedule triggers taken per workspace, in one sweep; default 100, range 1–1000. | 8A |
 | `AUTOMATION_ALERT_FAILURE_THRESHOLD` | Technical automation limit: consecutive failed runs before the owner is alerted; default 3, range 1–20. | 8A |
 | `AUTOMATION_ALERT_INTERVAL_MINUTES` | Technical automation limit: least time between two failure alerts for one automation; default 1440, range 60–10080. | 8A |
+| `AGENT_PROFILES_PER_WORKSPACE_MAX` | Technical agent limit: agent profiles (not purged) per workspace, reserved under a workspace lock; default 100, range 1–1000. | 8B |
+| `AGENT_INSTRUCTIONS_MAX_CHARS` | Technical agent limit: characters of a profile's instructions; default 8000, range 100–32000. | 8B |
+| `AGENT_SCOPE_GRANTS_MAX` | Technical agent limit: scope grants (brands, projects, records, integrations) in one profile revision; default 50, range 1–500. | 8B |
+| `AGENT_TOOL_GRANTS_MAX` | Technical agent limit: tool grants in one profile revision; default 20, range 1–50. | 8B |
+| `AGENT_CONFIG_BYTES_MAX` | Technical agent limit: canonical bytes of one profile configuration; default 32768, range 1024–65536. | 8B |
+| `AGENT_ASSIGNMENTS_PER_TASK_MAX` | Technical agent limit: active agent assignments of one task, reserved under the task lock; default 5, range 1–20. | 8B |
+| `AGENT_CONTEXT_REFS_MAX` | Technical agent limit: context references chosen for one assignment; default 20, range 0–100. | 8B |
+| `AGENT_CRITERIA_MAX` | Technical agent limit: acceptance criteria of one assignment; default 20, range 1–50. | 8B |
+| `AGENT_ASSIGNMENT_TEXT_MAX_CHARS` | Technical agent limit: characters of an assignment's goal, constraints, deliverable, and each criterion; default 4000, range 100–4000. | 8B |
+| `AGENT_CONNECTOR_TIMEOUT_MS` | Technical agent limit: one connector handshake; default 10000, range 1000–30000. | 8B |
+| `AGENT_CONNECTOR_RESPONSE_MAX_BYTES` | Technical agent limit: bytes of one handshake answer; more is refused, never truncated; default 65536, range 1024–1048576. | 8B |
+| `AGENT_CONNECTOR_TESTS_PER_HOUR` | Technical agent limit: connector tests of one profile per hour, reserved under the connector lock; default 20, range 1–200. | 8B |
+| `AGENT_CONNECTOR_TRANSPORT` | Agent connector test transport: none (default) or fixture (the synthetic local peers, loopback only); refused in deployed environments. No live transport exists until an approved secret store and credentials do (DQ-28). | 8B |

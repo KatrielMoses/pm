@@ -301,6 +301,16 @@ export const NON_RESOURCE_TYPES = [
   'automation_runs',
   'automation_usage',
   'automation_health',
+  // 8B: agent profile lists, starter templates, the tool registry, revisions, connector tests,
+  // assignment previews, assignments, and a task's assignments.
+  'agent_profiles',
+  'agent_templates',
+  'agent_tools',
+  'agent_profile_revisions',
+  'agent_connector_test',
+  'agent_assignment_preview',
+  'agent_assignment',
+  'agent_assignments',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

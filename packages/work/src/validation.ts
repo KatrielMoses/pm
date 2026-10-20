@@ -536,6 +536,32 @@ export interface WorkSettings {
   automationAlertFailureThreshold: number;
   /** `AUTOMATION_ALERT_INTERVAL_MINUTES`: least time between two failure alerts for one automation (default 1440, 60–10080). */
   automationAlertIntervalMinutes: number;
+  /** `AGENT_PROFILES_PER_WORKSPACE_MAX`: agent profiles (not purged) per workspace, reserved under a workspace lock (default 100, 1–1000). */
+  agentProfilesPerWorkspaceMax: number;
+  /** `AGENT_INSTRUCTIONS_MAX_CHARS`: characters of a profile's instructions (default 8000, 100–32000). */
+  agentInstructionsMaxChars: number;
+  /** `AGENT_SCOPE_GRANTS_MAX`: scope grants (brands, projects, records, integrations) in one profile revision (default 50, 1–500). */
+  agentScopeGrantsMax: number;
+  /** `AGENT_TOOL_GRANTS_MAX`: tool grants in one profile revision (default 20, 1–50). */
+  agentToolGrantsMax: number;
+  /** `AGENT_CONFIG_BYTES_MAX`: canonical bytes of one profile configuration (default 32768, 1024–65536). */
+  agentConfigBytesMax: number;
+  /** `AGENT_ASSIGNMENTS_PER_TASK_MAX`: active agent assignments of one task, reserved under the task lock (default 5, 1–20). */
+  agentAssignmentsPerTaskMax: number;
+  /** `AGENT_CONTEXT_REFS_MAX`: context references chosen for one assignment (default 20, 0–100). */
+  agentContextRefsMax: number;
+  /** `AGENT_CRITERIA_MAX`: acceptance criteria of one assignment (default 20, 1–50). */
+  agentCriteriaMax: number;
+  /** `AGENT_ASSIGNMENT_TEXT_MAX_CHARS`: characters of an assignment's goal, constraints, deliverable, and each criterion (default 4000, 100–4000). */
+  agentAssignmentTextMaxChars: number;
+  /** `AGENT_CONNECTOR_TIMEOUT_MS`: one connector handshake (default 10000, 1000–30000). */
+  agentConnectorTimeoutMs: number;
+  /** `AGENT_CONNECTOR_RESPONSE_MAX_BYTES`: bytes of one handshake answer; more is refused, never truncated (default 65536, 1024–1048576). */
+  agentConnectorResponseMaxBytes: number;
+  /** `AGENT_CONNECTOR_TESTS_PER_HOUR`: connector tests of one profile per hour, reserved under the connector lock (default 20, 1–200). */
+  agentConnectorTestsPerHour: number;
+  /** `AGENT_CONNECTOR_TRANSPORT`: `none` (connector tests unavailable) or `fixture` (local and test only; results synthetic). */
+  agentConnectorTransport: 'none' | 'fixture';
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -796,6 +822,19 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   automationSweepBatchMax: 100,
   automationAlertFailureThreshold: 3,
   automationAlertIntervalMinutes: 1440,
+  agentProfilesPerWorkspaceMax: 100,
+  agentInstructionsMaxChars: 8000,
+  agentScopeGrantsMax: 50,
+  agentToolGrantsMax: 20,
+  agentConfigBytesMax: 32_768,
+  agentAssignmentsPerTaskMax: 5,
+  agentContextRefsMax: 20,
+  agentCriteriaMax: 20,
+  agentAssignmentTextMaxChars: 4000,
+  agentConnectorTimeoutMs: 10_000,
+  agentConnectorResponseMaxBytes: 65_536,
+  agentConnectorTestsPerHour: 20,
+  agentConnectorTransport: 'none',
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

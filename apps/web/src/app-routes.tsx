@@ -70,6 +70,11 @@ const AutomationPage = lazy(() =>
 const AutomationRunPage = lazy(() =>
   import('./automations/pages.tsx').then((m) => ({ default: m.AutomationRunPage })),
 );
+// 8B agent pages load on first use as well.
+const AgentsPage = lazy(() =>
+  import('./agents/pages.tsx').then((m) => ({ default: m.AgentsPage })),
+);
+const AgentPage = lazy(() => import('./agents/pages.tsx').then((m) => ({ default: m.AgentPage })));
 const loadingAutomations = (
   <p className="loading" role="status">
     Loading…
@@ -239,6 +244,16 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   automation_run: (p) => (
     <Suspense fallback={loadingAutomations}>
       <AutomationRunPage key={p.run} ws={p.ws!} aut={p.aut!} run={p.run!} />
+    </Suspense>
+  ),
+  agents: (p) => (
+    <Suspense fallback={loadingAutomations}>
+      <AgentsPage key={p.ws} ws={p.ws!} />
+    </Suspense>
+  ),
+  agent: (p) => (
+    <Suspense fallback={loadingAutomations}>
+      <AgentPage key={p.agt} ws={p.ws!} id={p.agt!} />
     </Suspense>
   ),
   access_settings: (p) => <AccessSettingsPage ws={p.ws!} />,
