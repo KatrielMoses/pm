@@ -1958,6 +1958,10 @@ export class AutomationService extends AiGatewayService {
     if (err instanceof StepRefused) return err.failure;
     if (err instanceof TenancyError) {
       const code = (err.issues[0]?.code ?? err.code).replace(/[^a-z_.]/g, '_').slice(0, 64);
+      // AI availability (no provider, AI off, not entitled) is a configuration fact, not a hidden
+      // record: it is reported as unavailable with its own code (7A wording, nothing sent).
+      if (/^ai_/.test(code) && (err.code === 'forbidden' || err.code === 'dependency_unavailable'))
+        return { cls: 'unavailable', code };
       switch (err.code) {
         case 'not_found':
         case 'forbidden':

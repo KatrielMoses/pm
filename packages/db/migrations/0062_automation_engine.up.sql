@@ -125,9 +125,10 @@ CREATE TABLE automation.automation_revision (
 );
 CREATE INDEX automation_revision_by_creator ON automation.automation_revision (workspace_id, created_by_membership_id);
 
+-- Deferred (NO ACTION): a purge removes revisions and their automation in one commit.
 ALTER TABLE automation.automation ADD CONSTRAINT automation_active_revision_fkey
   FOREIGN KEY (workspace_id, active_revision_id) REFERENCES automation.automation_revision (workspace_id, id)
-  ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED;
+  DEFERRABLE INITIALLY DEFERRED;
 CREATE INDEX automation_by_active_revision ON automation.automation (workspace_id, active_revision_id);
 
 CREATE FUNCTION automation.revision_immutable() RETURNS trigger

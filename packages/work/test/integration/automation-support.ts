@@ -1,5 +1,5 @@
 import { LogErrorReporter } from '@pm/observability';
-import { WorkerRuntime, type EffectBarriers } from '@pm/platform';
+import { WorkerRuntime, type EffectBarriers, type JobHandler } from '@pm/platform';
 import type { TestDatabase } from '@pm/test-support/vitest';
 import {
   automationRunHandler,
@@ -16,7 +16,7 @@ import type { WorkEnv } from './fixture.ts';
  */
 export async function automationWorker(
   env: WorkEnv,
-  options: { effectBarriers?: EffectBarriers; maxAttempts?: number } = {},
+  options: { effectBarriers?: EffectBarriers; maxAttempts?: number; handlers?: JobHandler[] } = {},
 ) {
   const h = env.h;
   const svc = env.workerSvc();
@@ -25,7 +25,7 @@ export async function automationWorker(
   const worker = new WorkerRuntime({
     db: h.worker,
     discovery: h.discovery,
-    handlers: [automationRunHandler(deps), automationSweepHandler(deps)],
+    handlers: [automationRunHandler(deps), automationSweepHandler(deps), ...(options.handlers ?? [])],
     consumers: [
       new AutomationTriggerConsumer(svc),
       new AutomationOutcomeConsumer(svc),

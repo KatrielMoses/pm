@@ -2895,7 +2895,22 @@ export class AiGatewayService extends McpAccessService {
       `Action: ${def.label}`,
       ...(input.instruction ? [`Request: ${input.instruction}`] : []),
     ].join('\n');
-    const retrieval = this.#parseRetrieval({ scope: input.scope, question: request }, 'answer');
+    // No person previews the context here: the manifest is discovered now through the owner's
+    // authority (as the preview would), and its digest pins that exact context for the run.
+    const scoped = this.#parseRetrieval({ scope: input.scope }, 'preview');
+    scoped.retrieval.offerChoices = !!def.choices;
+    await this.#retrievalAuthority(tx, p, scoped.retrieval.scope);
+    const { policy } = await this.#availability(tx);
+    const manifest = await this.#manifestFor(
+      tx,
+      p,
+      { retrieval: scoped.retrieval, digest: null, pinned: null },
+      policy?.maxDataClass ?? 'C2',
+    );
+    const retrieval = this.#parseRetrieval(
+      { scope: input.scope, question: request, manifest_digest: manifest.digest },
+      'answer',
+    );
     retrieval.retrieval.offerChoices = !!def.choices;
     const out = await this.#createRun(
       tx,

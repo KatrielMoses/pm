@@ -17,11 +17,7 @@ export async function purgeAutomations(tx: WorkspaceTransaction, ids: readonly s
   await tx.db.deleteFrom('automation.automation_run').where('automation_id', 'in', ids).execute();
   await tx.db.deleteFrom('automation.standing_approval').where('automation_id', 'in', ids).execute();
   await tx.db.deleteFrom('automation.trigger_schedule').where('automation_id', 'in', ids).execute();
-  await tx.db
-    .updateTable('automation.automation')
-    .set({ active_revision_id: null, enabled: false, trigger_event: null })
-    .where('id', 'in', ids)
-    .execute();
+  // The active-revision reference is deferred: revisions and their automation go in one commit.
   await tx.db.deleteFrom('automation.automation_revision').where('automation_id', 'in', ids).execute();
   await tx.db.deleteFrom('automation.automation').where('id', 'in', ids).execute();
 }
