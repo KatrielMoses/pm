@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": "8-W0",
-  "status": "candidate",
+  "status": "accepted",
   "adr": "0045",
   "base": "3df1b541a14d8c0776bfde511190d9457a16e287",
   "phase7_acceptance": {
@@ -9,6 +9,26 @@
     "ci_run": "39223070408",
     "attempt": 1,
     "pr": "#42"
+  },
+  "accepted": {
+    "head": "0c259833f0037e341f89c2221c6dee537ffd042b",
+    "ci_run": "39234366133",
+    "attempt": 1,
+    "pr": "#43",
+    "shards": [
+      "core",
+      "e2e-desktop",
+      "e2e-tablet",
+      "e2e-mobile"
+    ],
+    "totals": {
+      "unit_component": 952,
+      "integration": 1075,
+      "process_smoke": 6,
+      "browser": 282
+    },
+    "recorded_by": "the Phase 8A brief",
+    "boundaries": "Engineering acceptance only: no exactly-once delivery for unsafe destinations, no production approval, and every manual boundary stays open."
   },
   "decisions": [
     {

@@ -1,6 +1,6 @@
 # ADR-0045: Safe recovery of external effects (Phase 8 prerequisite)
 
-Status: **proposed** (implemented; candidate for architect review; closes REL-FU-7A-01 with runtime evidence; not Phase 8 feature work).
+Status: **accepted** (engineering scope: the architect accepted P8-W0 and closed REL-FU-7A-01 at head `0c25983` (`0c259833f0037e341f89c2221c6dee537ffd042b`), CI run 39234366133 attempt 1, draft PR #43: four required shards passed; 952 unit/component, 1075 integration, 6 process smoke, 282 browser; recorded here by the 8A brief; not production approval: no exactly-once delivery is claimed, and every production and manual boundary below stays open).
 Date: 2026-10-19. Brief P8-W0. Base: accepted Phase 7 head `3df1b54` (`3df1b541a14d8c0776bfde511190d9457a16e287`, CI run 39223070408). Migrations 0001–0060 unchanged; this adds `0061_effect_recovery_safety`.
 
 ## Context
