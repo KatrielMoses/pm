@@ -62,7 +62,7 @@ const facts = (over: Partial<RecordFacts> = {}): RecordFacts => ({
 });
 
 describe('automation definitions (8A compiler)', () => {
-  it('AT-566 compiles a typed graph to a canonical form with ordered default edges', () => {
+  it('AT-565 compiles a typed graph to a canonical form with ordered default edges', () => {
     const c = compileDefinition(
       base({
         conditions: {
@@ -173,7 +173,7 @@ describe('automation definitions (8A compiler)', () => {
     );
   });
 
-  it('AT-566 graph checks: references, cycles, reachability, depth, node and size caps', () => {
+  it('AT-582 graph checks: references, cycles, reachability, depth, node and size caps', () => {
     expect(
       codes(base({ steps: [{ id: 'a', type: 'action', action: 'task.archive', next: 'zz' }] })),
     ).toContain('/steps/0/next:invalid_reference');
@@ -255,7 +255,7 @@ describe('automation definitions (8A compiler)', () => {
     ).toEqual(['/:too_large']);
   });
 
-  it('AT-566 fallbacks name typed failures only; unknown external outcomes are never one', () => {
+  it('AT-583 fallbacks name typed failures only; unknown external outcomes are never one', () => {
     const fb = (on: unknown) =>
       base({
         steps: [{ id: 'a', type: 'action', action: 'task.archive', fallback: { on, next: null } }],
@@ -265,7 +265,7 @@ describe('automation definitions (8A compiler)', () => {
     expect(codes(fb([]))).toContain('/steps/0/fallback/on:invalid_option');
   });
 
-  it('AT-560 future triggers and agent actions compile as typed, unavailable boundaries', () => {
+  it('AT-584 future triggers and agent actions compile as typed, unavailable boundaries', () => {
     const t = compileDefinition(base({ trigger: { kind: 'test.result', record: 'task' } }), LIMITS);
     expect(t.unavailable).toEqual([
       { pointer: '/trigger/kind', code: 'trigger_unavailable', owner: '9B' },
@@ -283,7 +283,7 @@ describe('automation definitions (8A compiler)', () => {
     expect(ACTION_MATRIX['agent.invoke'].status).toBe('unavailable');
   });
 
-  it('AT-566 outbound steps declare an exact destination and structural field set', () => {
+  it('AT-585 outbound steps declare an exact destination and structural field set', () => {
     const c = compileDefinition(
       base({
         steps: [
@@ -349,7 +349,7 @@ describe('automation definitions (8A compiler)', () => {
     ).toEqual(['work.project.status_changed']);
   });
 
-  it('AT-566 every starter template compiles (values supplied)', () => {
+  it('AT-586 every starter template compiles (values supplied)', () => {
     for (const t of STARTER_TEMPLATES) {
       const d = templateDraft(
         t.key,
@@ -363,7 +363,7 @@ describe('automation definitions (8A compiler)', () => {
 });
 
 describe('automation condition evaluator (8A)', () => {
-  it('AT-566 AND/OR with short-circuit decisions, relative dates in the run day', () => {
+  it('AT-587 AND/OR with short-circuit decisions, relative dates in the run day', () => {
     const cond = {
       any: [
         { field: 'priority', op: 'eq' as const, value: 'low' },
@@ -394,7 +394,7 @@ describe('automation condition evaluator (8A)', () => {
     expect(addDaysLocal('2026-02-27', 2)).toBe('2026-03-01');
   });
 
-  it('AT-556 an unreadable custom field is never false and never a branch hint', () => {
+  it('AT-588 an unreadable custom field is never false and never a branch hint', () => {
     expect(
       evaluate({ field: 'custom:fld_A', op: 'gt', value: 3 }, facts(), '2026-10-20').result,
     ).toBe(true);

@@ -65,10 +65,15 @@ HOLLOW = [("CAL-012", "linked_work_block_id"), ("CAL-008", "busy boolean"), ("CA
 
 
 def _ai_head(factory):
-    """Phase 7A extends the 6E head: AiGatewayService extends McpAccessService."""
+    """Phase 7A extends the 6E head: AiGatewayService extends McpAccessService (and 8A extends
+    the gateway: AutomationService extends AiGatewayService)."""
     path = P("packages/work/src/ai/ai-gateway-service.ts")
-    return ("return new AiGatewayService(" in factory and os.path.isfile(path)
-            and "export class AiGatewayService extends McpAccessService" in read(path))
+    if not (os.path.isfile(path) and "export class AiGatewayService extends McpAccessService" in read(path)):
+        return False
+    auto = P("packages/work/src/automation/service.ts")
+    return "return new AiGatewayService(" in factory or (
+        "return new AutomationService(" in factory and os.path.isfile(auto)
+        and "export class AutomationService extends AiGatewayService" in read(auto))
 
 def check_validators():
     errs = []
@@ -118,6 +123,7 @@ def check_numbering():
         "0059": ("0059_planning_capture.up.sql", "phase7f.py"),
         "0060": ("0060_phase7_integration.up.sql", "phase7.py"),
         "0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py"),
+        "0062": ("0062_automation_engine.up.sql", "phase8a.py"),
     }
     for k in later:
         name, validator = later_owned.get(k, (None, None))
@@ -143,7 +149,7 @@ def check_numbering():
         # Phase 7F one (ADR-50, AZ-50, PL-52).
         own = int(anchors[-1].split("-")[1])
         later_anchors = {"phase7a.py": 2, "phase7b.py": 1, "phase7d.py": 1, "phase7c.py": 1, "phase7e.py": 1,
-                         "phase7f.py": 1}
+                         "phase7f.py": 1, "phase8a.py": 1}
         allowed = own + sum(n for v, n in later_anchors.items()
                             if os.path.isfile(P("docs/engineering/tools/%s" % v)))
         if last not in (own, allowed):

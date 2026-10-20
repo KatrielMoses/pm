@@ -99,14 +99,20 @@ def check_production_safety():
     return errs, "disabled by default, deployed refusals, explicit approval, no SDK, no fallbacks"
 
 
+AUTOMATION_SERVICE = "packages/work/src/automation/service.ts"
+
+
 def check_gateway():
     errs = []
     service = read(P(SERVICE))
     factory = read(P("packages/work/src/factory.ts"))
     if "export class AiGatewayService extends McpAccessService" not in service:
         errs.append("AiGatewayService must extend the 6E McpAccessService head")
-    if "return new AiGatewayService(" not in factory:
-        errs.append("createWorkService must return AiGatewayService")
+    # 8A extends the gateway once (AutomationService extends AiGatewayService, phase8a.py).
+    if "return new AiGatewayService(" not in factory and not (
+            "return new AutomationService(" in factory
+            and "export class AutomationService extends AiGatewayService" in read(P(AUTOMATION_SERVICE))):
+        errs.append("createWorkService must return AiGatewayService (or its 8A extension)")
     # Provider output is data: the gateway never writes business records.
     for bad in ("insertInto('work.", "updateTable('work.", "deleteFrom('work.", "updateTable('collab.",
                 "updateTable('knowledge."):
@@ -194,6 +200,7 @@ def check_migration():
         "0059": ("0059_planning_capture.up.sql", "phase7f.py"),
         "0060": ("0060_phase7_integration.up.sql", "phase7.py"),
         "0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py"),
+        "0062": ("0062_automation_engine.up.sql", "phase8a.py"),
     }
     for k in sorted(k for k in by if k > "0054"):
         name, validator = later_owned.get(k, (None, None))

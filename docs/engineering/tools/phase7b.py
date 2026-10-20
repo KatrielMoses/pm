@@ -198,6 +198,7 @@ def check_migration():
         "0059": ("0059_planning_capture.up.sql", "phase7f.py"),
         "0060": ("0060_phase7_integration.up.sql", "phase7.py"),
         "0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py"),
+        "0062": ("0062_automation_engine.up.sql", "phase8a.py"),
     }
     for k in sorted(k for k in by if k > "0055"):
         name, validator = later_owned.get(k, (None, None))

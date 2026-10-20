@@ -2850,7 +2850,7 @@
         "AUTO-001",
         "AUTO-013"
       ],
-      "notes": ""
+      "notes": "8A (AZ-51): also activation, duplication, and reassignment; the activator and the accountable owner both need grantable authority for every declared brand and action. Never delegable to tokens."
     },
     {
       "key": "integrations.configure",
@@ -3523,7 +3523,7 @@
       "requirements": [
         "AUTO-012"
       ],
-      "notes": ""
+      "notes": "8A (AZ-51): also preview, and the risk label of every automation run. A run executes as its accountable owner, narrowed to the declared and snapshotted brands the owner can still configure."
     },
     {
       "key": "integration.sync_now",

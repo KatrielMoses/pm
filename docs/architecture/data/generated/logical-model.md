@@ -4928,7 +4928,7 @@ The complete authorization basis of a briefing statement, a correction note, or 
 
 ## Automations (`automation`, schema `automation`)
 
-Automation definitions with immutable versions, runs and step runs.
+Automation definitions with immutable revisions, runs and step runs, standing outbound approvals, date and schedule trigger state, and usage counters.
 
 <a id="entity-automation"></a>
 ### `automation`
@@ -4946,14 +4946,15 @@ Trigger-condition-action automation at brand or workspace scope with declared ta
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `enabled boolean`; `current_version_id`; `declared_brand_ids uuid[] (workspace scope only)`; `loop_guard jsonb`; `accountable_owner_membership_id`; `suspended_reason (owner_authority\|owner_departed\|admin) null`; `suspended_at null` |
+| Key typed columns | `accountable_owner_membership_id (stored as owner_membership_id; runs execute as this member)`; `brand_id null (workspace scope has no fabricated brand)`; `enabled boolean`; `active_revision_id null (deferrable reference to the selected immutable revision)`; `trigger_kind, trigger_event (consumer index)`; `activated_at null (events before it never start a run)`; `draft jsonb (definition and scope; edits never touch the active revision)`; `suspended_reason (owner_authority\|owner_departed) null`; `suspended_at null`; `active_runs (atomic run-slot reservation)`; `consecutive_failures, alerted_at (failure-alert streak)`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | AUTO-001, AUTO-013, AUTO-011 |
+| Requirements | AUTO-001, AUTO-013, AUTO-011, AUTO-016 |
+| Notes | Phase 8A (ADR-51): a core.record extension. Workspace scope declares its brands in each revision; it is never all-brands authority. |
 
-<a id="entity-automation-version"></a>
-### `automation_version`
+<a id="entity-automation-revision"></a>
+### `automation_revision`
 
-Immutable validated definition (trigger, conditions, steps, branches).
+Immutable validated definition (trigger, conditions, steps, branches, delays, fallbacks) with its declared brands, projects, and action allow-list.
 
 | Property | Value |
 |---|---|
@@ -4965,10 +4966,11 @@ Immutable validated definition (trigger, conditions, steps, branches).
 | Retention / confidentiality | `R-LIVE` / `C1` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(automation_id, version_number)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(automation_id, revision_number)`; `(automation_id, definition_hash)` |
+| Key typed columns | `revision_number`; `schema_version`; `definition jsonb (canonical)`; `definition_hash`; `trigger_kind, record_kind`; `declared_brand_ids uuid[], declared_project_ids uuid[]`; `action_keys text[], action_classes text[]`; `created_by_membership_id` |
 | Sensitive fields | — |
 | Requirements | AUTO-013, AUTO-012 |
+| Notes | Phase 8A (ADR-51): renamed from automation_version; a run pins its revision on first consumption. |
 
 <a id="entity-automation-run"></a>
 ### `automation_run`
@@ -4980,15 +4982,16 @@ Operation detail of one run with triggering event and causation chain depth.
 | Scope | `inherited` |
 | Contained by | — |
 | Extends (1:1) | [`operation`](logical-model.md#entity-operation) |
-| Associations | [`automation_version`](logical-model.md#entity-automation-version) |
+| Associations | [`automation_revision`](logical-model.md#entity-automation-revision) |
 | Lifecycle / concurrency | `append-only` / `append-only` |
 | Retention / confidentiality | `R-EXEC` / `C2` |
 | Volume / export / search-AI | `very-high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(automation_id, trigger_event_id)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(automation_id, trigger_key)` |
+| Key typed columns | `operation_id (first), current_operation_id (after a retry)`; `revision_id (pinned)`; `owner_membership_id (pinned)`; `trigger_kind, trigger_key (event, occurrence, or manual identity)`; `trigger_event_id, trigger_record_id null`; `root_causation_id, lineage uuid[], chain_depth (loop guard)`; `scope_snapshot jsonb (bounded references only)`; `status (queued\|running\|waiting\|succeeded\|partial\|failed\|policy_rejected\|skipped\|cancelled), reason`; `cursor, wake_at (persisted delay checkpoint)`; `usage_state (none\|reserved\|settled\|released), slot_held`; `retry_count, steps_executed` |
 | Sensitive fields | — |
-| Requirements | AUTO-014, AUTO-011, AUTO-017 |
+| Requirements | AUTO-014, AUTO-011, AUTO-015, AUTO-017 |
+| Notes | Phase 8A (ADR-51): the detail of an automation_run operation; no raw event bodies or secrets. |
 
 <a id="entity-automation-step-run"></a>
 ### `automation_step_run`
@@ -5005,10 +5008,74 @@ Per-step state, inputs and outputs (redacted), error.
 | Retention / confidentiality | `R-EXEC` / `C2` |
 | Volume / export / search-AI | `very-high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(automation_run_id, step_key, attempt)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(run_id, node_id, attempt)`; `(run_id, node_id) where state = succeeded` |
+| Key typed columns | `node_id, attempt`; `kind (conditions\|branch\|delay\|action), action_key`; `state (running\|succeeded\|failed\|refused\|skipped\|unknown), failure_class, code`; `decision jsonb (bounded comparisons; no hidden values)`; `targets, output jsonb (references only)`; `logical_key (revision, run, node, target, parameters)`; `operation_id (the attempt's operation)` |
 | Sensitive fields | — |
 | Requirements | AUTO-014, AUTO-015 |
+| Notes | Phase 8A (ADR-51). |
+
+<a id="entity-automation-standing-approval"></a>
+### `automation_standing_approval`
+
+A human's standing outbound approval for one webhook step of one revision: the exact destination, field set, scope, and action class, taken under step-up.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`automation`](logical-model.md#entity-automation) |
+| Extends (1:1) | — |
+| Associations | [`automation_revision`](logical-model.md#entity-automation-revision), [`webhook_subscription`](logical-model.md#entity-webhook-subscription) |
+| Lifecycle / concurrency | `state-machine` / `row-version` |
+| Retention / confidentiality | `R-AUDIT` / `C1` |
+| Volume / export / search-AI | `low` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(revision_id, node_id) where state = active` |
+| Key typed columns | `revision_id, node_id`; `subscription_id, destination_fingerprint`; `field_set text[]`; `scope_hash, action_class`; `approved_by_membership_id, step_up_id`; `state (active\|ended), ended_at` |
+| Sensitive fields | — |
+| Requirements | AUTO-008 |
+| Notes | Phase 8A (ADR-51; 0C access contract 9.4). Table automation.standing_approval. A changed revision, destination, or scope never reuses it; send time still authorizes. |
+
+<a id="entity-automation-trigger-schedule"></a>
+### `automation_trigger_schedule`
+
+The next due occurrence of an active date or schedule trigger and the last occurrence key taken.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`automation`](logical-model.md#entity-automation) |
+| Extends (1:1) | — |
+| Associations | [`automation_revision`](logical-model.md#entity-automation-revision) |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `no` / `no` |
+| Uniqueness | `(automation_id)` |
+| Key typed columns | `revision_id`; `kind (schedule\|date)`; `next_due_at`; `last_key (stable local occurrence key)` |
+| Sensitive fields | — |
+| Requirements | AUTO-003, AUTO-009 |
+| Notes | Phase 8A (ADR-51). Table automation.trigger_schedule; discovered by exec_dispatch.discover_automation_due. |
+
+<a id="entity-automation-usage-period"></a>
+### `automation_usage_period`
+
+Measured automation usage of one workspace for one month: reserved, settled, and released runs and executed steps.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-EXEC` / `C1` |
+| Volume / export / search-AI | `low` / `admin` / `no` |
+| Secrets / personal data | `no` / `no` |
+| Uniqueness | `(workspace_id, period_start)` |
+| Key typed columns | `period_start`; `runs_reserved, runs_settled, runs_released`; `steps_executed`; `alerted_bp (threshold notices sent)` |
+| Sensitive fields | — |
+| Requirements | AUTO-017, AUTO-018 |
+| Notes | Phase 8A (ADR-51). Table automation.usage_period. A technical limit, not a plan entitlement (10A). |
 
 ## Agents and execution control (`agents`, schema `agents`)
 

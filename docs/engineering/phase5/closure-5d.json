@@ -424,13 +424,18 @@
       "evidence": [
         {
           "file": "packages/work/src/insights/metrics.ts",
+          "contains": "automationRunsMetric,"
+        },
+        {
+          "file": "packages/work/src/insights/metrics-8a.ts",
           "contains": "key: 'automation.rates'"
         },
         {
           "file": "apps/api/test/integration/insights-api.test.ts",
           "contains": "serves the metric catalog, with what is not yet available and why"
         }
-      ]
+      ],
+      "note": "Reconciled by Phase 8A (ADR-0046): automation success and failure rates are answered by the 8A provider registered in the same catalog (metrics-8a.ts); agent rates stay deferred to 8C (agent.rates)."
     },
     {
       "id": "RPT-014",

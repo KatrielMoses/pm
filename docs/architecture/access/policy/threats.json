@@ -1446,6 +1446,71 @@
       "mitigated_by": [
         "I-09"
       ]
+    },
+    {
+      "id": "T-142",
+      "category": "agent_scope",
+      "description": "An automation acts beyond its accountable owner's current authority: through a broad declared or workspace scope, the trigger author's or the worker's identity, a guest or narrower configurer, or an action the owner cannot grant.",
+      "mitigated_by": [
+        "I-14",
+        "I-11"
+      ]
+    },
+    {
+      "id": "T-143",
+      "category": "revocation",
+      "description": "Revocation or departure is not honoured between preview and activation, before a delayed step, on retry, on a completed-key replay, or when history is rendered, so a run keeps acting or showing what its owner or viewer lost.",
+      "mitigated_by": [
+        "I-12",
+        "I-10"
+      ]
+    },
+    {
+      "id": "T-144",
+      "category": "inference",
+      "description": "Hidden records or fields leak through automations: an unreadable input treated as false or used as a branch hint, or disclosed by preview, run history, errors, notifications, metrics, or health.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-145",
+      "category": "spoofing",
+      "description": "Automation lineage is forged or reset (a payload claims a cause, a replay spends new budget), so rules trigger each other without bound or a cycle goes unnoticed.",
+      "mitigated_by": [
+        "I-09",
+        "I-01"
+      ]
+    },
+    {
+      "id": "T-146",
+      "category": "agent_scope",
+      "description": "An automation discloses or acts externally without a human's exact standing approval, resends after an ambiguous outcome, hides unknown liability behind a fallback, or approves or applies generated changes itself.",
+      "mitigated_by": [
+        "I-15",
+        "I-16",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-147",
+      "category": "cross_workspace",
+      "description": "Automation triggers, runs, identifiers, or worker writes cross a workspace boundary, or the worker writes columns the canonical commands never write.",
+      "mitigated_by": [
+        "I-03",
+        "I-02"
+      ]
+    },
+    {
+      "id": "T-148",
+      "category": "staleness",
+      "description": "A run executes something other than what was activated: a draft edit changes the active revision, a redelivered event runs under a newer revision or twice, unsupported configuration is silently ignored, or limits are reserved or released twice.",
+      "mitigated_by": [
+        "I-01",
+        "I-09"
+      ]
     }
   ],
   "tests": [
@@ -11032,6 +11097,550 @@
       "response_shape": "forbidden",
       "silent_surfaces": [
         "error_message"
+      ]
+    },
+    {
+      "id": "AT-552",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "automation",
+      "setup": "A field-change trigger after activation, the canonical command run as the automation on behalf of its owner",
+      "scope": "brand",
+      "action": "record.update",
+      "surface": "activity",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-553",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "system_job",
+      "setup": "The same event redelivered after the automation was edited and activated again, and two workers consuming it at once",
+      "scope": "brand",
+      "action": "record.update",
+      "surface": "activity",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-554",
+      "threats": [
+        "T-143"
+      ],
+      "principal": "automation",
+      "setup": "A delayed run whose link target is trashed while it waits; the worker restarts before the wake",
+      "scope": "task",
+      "action": "record.relate",
+      "surface": "activity",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-555",
+      "threats": [
+        "T-145"
+      ],
+      "principal": "automation",
+      "setup": "Two rules that trigger each other, a rule that triggers itself, a chain longer than the bound, and an idempotent replay",
+      "scope": "brand",
+      "action": "record.update",
+      "surface": "activity",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-556",
+      "threats": [
+        "T-142"
+      ],
+      "principal": "member",
+      "setup": "Every role, a guest, and a record share attempt to create, read, activate, and run brand automations, including in a sensitive brand without a grant",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-557",
+      "threats": [
+        "T-147"
+      ],
+      "principal": "automation",
+      "setup": "Three workspaces with automations on the same trigger; events, lists, runs, and identifiers of the others",
+      "scope": "cross-workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "activity",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-558",
+      "threats": [
+        "T-143"
+      ],
+      "principal": "automation",
+      "setup": "The owner loses brand authority between preview and activation, while a run waits on a delay, and before a retry",
+      "scope": "brand",
+      "action": "record.update",
+      "surface": "activity",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-559",
+      "threats": [
+        "T-143",
+        "T-144"
+      ],
+      "principal": "member",
+      "setup": "A former configurer opens run history after losing the brand; the owner departs",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "activity",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-560",
+      "threats": [
+        "T-144"
+      ],
+      "principal": "automation",
+      "setup": "A condition on a custom field the owner cannot read",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "activity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "activity",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-561",
+      "threats": [
+        "T-142"
+      ],
+      "principal": "automation",
+      "setup": "Each supported task action through its canonical command, attributed to the automation on behalf of its owner",
+      "scope": "task",
+      "action": "record.update",
+      "surface": "audit_display",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-562",
+      "threats": [
+        "T-142"
+      ],
+      "principal": "automation",
+      "setup": "Project update, schedule, notify, and archive; project create, assign, move, label, and relate",
+      "scope": "project",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-563",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "automation",
+      "setup": "Custom workflow gates, required fields, a cross-brand move, an approved-time lock, and a concurrent edit of the target",
+      "scope": "task",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-564",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "system_job",
+      "setup": "Schedules across a daylight-saving change in an explicit zone",
+      "scope": "workspace",
+      "action": "automation.run_manual",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-565",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "member",
+      "setup": "A definition compiled to its canonical form",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-566",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "member",
+      "setup": "Unsupported triggers, actions, fields, and parameters in a definition",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-567",
+      "threats": [
+        "T-146"
+      ],
+      "principal": "owner",
+      "setup": "Activating a webhook step without step-up, with a changed field set, destination, or revision",
+      "scope": "brand",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-568",
+      "threats": [
+        "T-146"
+      ],
+      "principal": "system_job",
+      "setup": "A worker crash before and after the webhook leaves; the receiver counts deliveries",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "approval_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-569",
+      "threats": [
+        "T-146"
+      ],
+      "principal": "system_job",
+      "setup": "A stale claimant reports after its lease was lost and the run waits for reconciliation",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-570",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "system_job",
+      "setup": "Competing workers admit runs at the concurrency and monthly limits; terminal accounting replayed",
+      "scope": "workspace",
+      "action": "automation.run_manual",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-571",
+      "threats": [
+        "T-146"
+      ],
+      "principal": "automation",
+      "setup": "An AI draft step with AI off, without a provider, and with the fixture provider",
+      "scope": "brand",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "approval_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-572",
+      "threats": [
+        "T-142"
+      ],
+      "principal": "member",
+      "setup": "Test-result and agent-result triggers and an agent workflow step at activation",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-573",
+      "threats": [
+        "T-144"
+      ],
+      "principal": "system_job",
+      "setup": "Repeated failures alert the owner once per interval; a success resets the streak",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "notification_inapp",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-574",
+      "threats": [
+        "T-143"
+      ],
+      "principal": "owner",
+      "setup": "Archive, restore, and purge of an automation with open and finished runs",
+      "scope": "brand",
+      "action": "record.archive",
+      "surface": "trash",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-575",
+      "threats": [
+        "T-144"
+      ],
+      "principal": "member",
+      "setup": "Preview with a readable record and with a record outside the automation's scope",
+      "scope": "brand",
+      "action": "automation.run_manual",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-576",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "system_job",
+      "setup": "Date and schedule sweeps repeated for the same occurrence",
+      "scope": "workspace",
+      "action": "automation.run_manual",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-577",
+      "threats": [
+        "T-144"
+      ],
+      "principal": "member",
+      "setup": "Automation rates for two viewers with the same access and for a viewer without health access",
+      "scope": "workspace",
+      "action": "health.view",
+      "surface": "report",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "report",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-578",
+      "threats": [
+        "T-142"
+      ],
+      "principal": "owner",
+      "setup": "Create from a template, edit with If-Match, preview, activate, version, duplicate, run, cancel, disable over HTTP",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-579",
+      "threats": [
+        "T-144"
+      ],
+      "principal": "guest",
+      "setup": "Members without authority, guests, unknown identifiers, and unsupported configuration over HTTP",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "api",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-580",
+      "threats": [
+        "T-143"
+      ],
+      "principal": "owner",
+      "setup": "The browser journey: starter, preview, activation, a real trigger, branch and wait, a refused step, a safe retry",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-581",
+      "threats": [
+        "T-143"
+      ],
+      "principal": "member",
+      "setup": "A brand manager loses the brand while editing an automation in the browser",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-582",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "member",
+      "setup": "Dangling references, cycles, unreachable steps, and depth, node, and size caps",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-583",
+      "threats": [
+        "T-146"
+      ],
+      "principal": "member",
+      "setup": "A fallback naming an unknown external outcome",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-584",
+      "threats": [
+        "T-142"
+      ],
+      "principal": "member",
+      "setup": "Future triggers and agent actions in a definition",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-585",
+      "threats": [
+        "T-146"
+      ],
+      "principal": "member",
+      "setup": "A webhook step without an exact destination or with a field outside the structural allow-list",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-586",
+      "threats": [
+        "T-148"
+      ],
+      "principal": "member",
+      "setup": "Every starter template with its values supplied",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-587",
+      "threats": [
+        "T-144"
+      ],
+      "principal": "automation",
+      "setup": "Nested AND/OR conditions with short-circuit decisions and relative dates",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "activity",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-588",
+      "threats": [
+        "T-144"
+      ],
+      "principal": "automation",
+      "setup": "A custom field the automation cannot read in a condition and a branch",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "activity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "activity",
+        "audit_display"
       ]
     }
   ]

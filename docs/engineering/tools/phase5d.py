@@ -239,9 +239,14 @@ def check_invariants():
     # The metric port: owners' services, the viewer's own predicate, deferred metrics listed.
     for needle in ["export interface MetricProvider", "export const PROVIDERS", "export const DEFERRED_METRICS",
                    "export async function evaluate(", "...METRICS_5C",
-                   "key: 'automation.rates'", "key: 'quality.release'"]:
+                   "key: 'quality.release'"]:
         if needle not in metrics:
             errs.append("metrics.ts lacks %s" % needle)
+    # Automation rates are deferred to 8A until 8A registers its provider through this same port.
+    m8a = P("packages/work/src/insights/metrics-8a.ts")
+    if "key: 'automation.rates'" not in metrics and not (
+            "automationRunsMetric," in metrics and os.path.isfile(m8a) and "key: 'automation.rates'" in read(m8a)):
+        errs.append("metrics.ts lacks key: 'automation.rates' (deferred, or the 8A provider through the port)")
     # AI usage is deferred to 7A until 7A registers its provider through this same port.
     m7a = P("packages/work/src/insights/metrics-7a.ts")
     if "key: 'ai.usage'" not in metrics and not (

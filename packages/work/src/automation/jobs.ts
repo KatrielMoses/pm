@@ -35,7 +35,7 @@ export interface AutomationJobDeps {
   >;
   metrics: Metrics;
   logger: Logger;
-  /** AUTOMATION_SWEEP_BATCH_MAX: workspaces visited per sweep. */
+  /** AUTOMATION_SWEEP_BATCH_MAX: workspaces visited per sweep (and due triggers per workspace). */
   sweepWorkspacesMax?: number;
 }
 

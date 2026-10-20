@@ -696,13 +696,14 @@
       "name": "Automations",
       "layer": 5,
       "schema": "automation",
-      "responsibilities": "Automation definitions with immutable versions, runs and step runs.",
+      "responsibilities": "Automation definitions with immutable revisions, runs and step runs, standing outbound approvals, date and schedule trigger state, and usage counters.",
       "depends_on": [
         "core",
         "tenancy",
         "metering",
         "execution",
-        "audit"
+        "audit",
+        "integrations"
       ],
       "publishes": [
         "automation_run.*"
@@ -9527,25 +9528,31 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
+        "accountable_owner_membership_id (stored as owner_membership_id; runs execute as this member)",
+        "brand_id null (workspace scope has no fabricated brand)",
         "enabled boolean",
-        "current_version_id",
-        "declared_brand_ids uuid[] (workspace scope only)",
-        "loop_guard jsonb",
-        "accountable_owner_membership_id",
-        "suspended_reason (owner_authority|owner_departed|admin) null",
-        "suspended_at null"
+        "active_revision_id null (deferrable reference to the selected immutable revision)",
+        "trigger_kind, trigger_event (consumer index)",
+        "activated_at null (events before it never start a run)",
+        "draft jsonb (definition and scope; edits never touch the active revision)",
+        "suspended_reason (owner_authority|owner_departed) null",
+        "suspended_at null",
+        "active_runs (atomic run-slot reservation)",
+        "consecutive_failures, alerted_at (failure-alert streak)",
+        "version bigint"
       ],
       "requirements": [
         "AUTO-001",
         "AUTO-013",
-        "AUTO-011"
+        "AUTO-011",
+        "AUTO-016"
       ],
-      "notes": ""
+      "notes": "Phase 8A (ADR-51): a core.record extension. Workspace scope declares its brands in each revision; it is never all-brands authority."
     },
     {
-      "name": "automation_version",
+      "name": "automation_revision",
       "module": "automation",
-      "purpose": "Immutable validated definition (trigger, conditions, steps, branches).",
+      "purpose": "Immutable validated definition (trigger, conditions, steps, branches, delays, fallbacks) with its declared brands, projects, and action allow-list.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -9564,15 +9571,25 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(automation_id, version_number)"
+        "(automation_id, revision_number)",
+        "(automation_id, definition_hash)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "revision_number",
+        "schema_version",
+        "definition jsonb (canonical)",
+        "definition_hash",
+        "trigger_kind, record_kind",
+        "declared_brand_ids uuid[], declared_project_ids uuid[]",
+        "action_keys text[], action_classes text[]",
+        "created_by_membership_id"
+      ],
       "requirements": [
         "AUTO-013",
         "AUTO-012"
       ],
-      "notes": ""
+      "notes": "Phase 8A (ADR-51): renamed from automation_version; a run pins its revision on first consumption."
     },
     {
       "name": "automation_run",
@@ -9584,7 +9601,7 @@
       "extends": "operation",
       "containment_parents": [],
       "associations": [
-        "automation_version"
+        "automation_revision"
       ],
       "lifecycle": "append-only",
       "concurrency": "append-only",
@@ -9596,16 +9613,29 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(automation_id, trigger_event_id)"
+        "(automation_id, trigger_key)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "operation_id (first), current_operation_id (after a retry)",
+        "revision_id (pinned)",
+        "owner_membership_id (pinned)",
+        "trigger_kind, trigger_key (event, occurrence, or manual identity)",
+        "trigger_event_id, trigger_record_id null",
+        "root_causation_id, lineage uuid[], chain_depth (loop guard)",
+        "scope_snapshot jsonb (bounded references only)",
+        "status (queued|running|waiting|succeeded|partial|failed|policy_rejected|skipped|cancelled), reason",
+        "cursor, wake_at (persisted delay checkpoint)",
+        "usage_state (none|reserved|settled|released), slot_held",
+        "retry_count, steps_executed"
+      ],
       "requirements": [
         "AUTO-014",
         "AUTO-011",
+        "AUTO-015",
         "AUTO-017"
       ],
-      "notes": ""
+      "notes": "Phase 8A (ADR-51): the detail of an automation_run operation; no raw event bodies or secrets."
     },
     {
       "name": "automation_step_run",
@@ -9629,15 +9659,139 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(automation_run_id, step_key, attempt)"
+        "(run_id, node_id, attempt)",
+        "(run_id, node_id) where state = succeeded"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "node_id, attempt",
+        "kind (conditions|branch|delay|action), action_key",
+        "state (running|succeeded|failed|refused|skipped|unknown), failure_class, code",
+        "decision jsonb (bounded comparisons; no hidden values)",
+        "targets, output jsonb (references only)",
+        "logical_key (revision, run, node, target, parameters)",
+        "operation_id (the attempt's operation)"
+      ],
       "requirements": [
         "AUTO-014",
         "AUTO-015"
       ],
-      "notes": ""
+      "notes": "Phase 8A (ADR-51)."
+    },
+    {
+      "name": "automation_standing_approval",
+      "module": "automation",
+      "purpose": "A human's standing outbound approval for one webhook step of one revision: the exact destination, field set, scope, and action class, taken under step-up.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "automation"
+      ],
+      "associations": [
+        "automation_revision",
+        "webhook_subscription"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-AUDIT",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(revision_id, node_id) where state = active"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "revision_id, node_id",
+        "subscription_id, destination_fingerprint",
+        "field_set text[]",
+        "scope_hash, action_class",
+        "approved_by_membership_id, step_up_id",
+        "state (active|ended), ended_at"
+      ],
+      "requirements": [
+        "AUTO-008"
+      ],
+      "notes": "Phase 8A (ADR-51; 0C access contract 9.4). Table automation.standing_approval. A changed revision, destination, or scope never reuses it; send time still authorizes."
+    },
+    {
+      "name": "automation_trigger_schedule",
+      "module": "automation",
+      "purpose": "The next due occurrence of an active date or schedule trigger and the last occurrence key taken.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "automation"
+      ],
+      "associations": [
+        "automation_revision"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "uniqueness": [
+        "(automation_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "revision_id",
+        "kind (schedule|date)",
+        "next_due_at",
+        "last_key (stable local occurrence key)"
+      ],
+      "requirements": [
+        "AUTO-003",
+        "AUTO-009"
+      ],
+      "notes": "Phase 8A (ADR-51). Table automation.trigger_schedule; discovered by exec_dispatch.discover_automation_due."
+    },
+    {
+      "name": "automation_usage_period",
+      "module": "automation",
+      "purpose": "Measured automation usage of one workspace for one month: reserved, settled, and released runs and executed steps.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-EXEC",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "admin",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "uniqueness": [
+        "(workspace_id, period_start)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "period_start",
+        "runs_reserved, runs_settled, runs_released",
+        "steps_executed",
+        "alerted_bp (threshold notices sent)"
+      ],
+      "requirements": [
+        "AUTO-017",
+        "AUTO-018"
+      ],
+      "notes": "Phase 8A (ADR-51). Table automation.usage_period. A technical limit, not a plan entitlement (10A)."
     },
     {
       "name": "agent_profile",

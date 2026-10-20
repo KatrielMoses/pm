@@ -1,0 +1,1009 @@
+{
+  "schema_version": 1,
+  "phase": "8A",
+  "status": "candidate",
+  "adr": "0046",
+  "base": {
+    "head": "0c259833f0037e341f89c2221c6dee537ffd042b",
+    "accepted_as": "P8-W0, CI run 39234366133 attempt 1"
+  },
+  "requirements": [
+    {
+      "id": "AUTO-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Typed trigger-condition-action automations with an accountable owner, brand or declared workspace scope, drafts, and immutable revisions.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/definition.ts",
+          "contains": "export function compileDefinition("
+        },
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async activateAutomation("
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-552 "
+        },
+        {
+          "file": "apps/api/test/integration/automations-api.test.ts",
+          "contains": "'AT-578 "
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-580 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "10B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "Five small starter templates that compile to real drafts (10B owns the later catalog and distribution).",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/templates.ts",
+          "contains": "export const STARTER_TEMPLATES"
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-586 "
+        },
+        {
+          "file": "apps/api/test/integration/automations-api.test.ts",
+          "contains": "'AT-578 "
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-580 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "9B",
+        "8C"
+      ],
+      "accepted_by": [
+        "adr:0046#D13"
+      ],
+      "note": "Record creation, field and status changes, comments, approvals, integration-created tasks, dates, schedules, and manual runs are wired to committed events and the scheduler; test-result (9B) and agent-result (8C) triggers are typed boundaries refused at activation.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/definition.ts",
+          "contains": "'test.result': { status: 'unavailable', records: ['task'], owner: '9B' },"
+        },
+        {
+          "file": "packages/work/src/automation/definition.ts",
+          "contains": "'agent.result': { status: 'unavailable', records: ['task'], owner: '8C' },"
+        },
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async consumeTriggerEvent("
+        },
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async runTriggerSweep("
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-552 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-576 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-572 "
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-584 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Nested AND/OR condition groups with short-circuit, bounded decisions in one evaluator.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/evaluate.ts",
+          "contains": "export function evaluate("
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-587 "
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-554 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Task create, update, assign, move, label, notify, schedule, archive, relate and project update, notify, schedule, archive through canonical commands; access-changing project verbs are refused at configuration.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/definition.ts",
+          "contains": "export const ACTION_MATRIX"
+        },
+        {
+          "file": "packages/work/test/integration/automations-actions.test.ts",
+          "contains": "'AT-561 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-actions.test.ts",
+          "contains": "'AT-562 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-actions.test.ts",
+          "contains": "'AT-563 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "AI draft steps start a 7A gateway run under the owner and yield a proposal for human review; AI off or no provider refuses truthfully without spend.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "protected async startAutomationAiRun("
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-571 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-007",
+      "role": "owned",
+      "disposition": "foundation",
+      "deferred_to": [
+        "8C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "A typed agent-workflow step: saved in drafts, refused at activation as unavailable until the 8C runtime; no agent runner is built.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/definition.ts",
+          "contains": "owner: '8C',"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-572 "
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-584 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Webhook steps through configured 6B subscriptions and per-step field allow-lists, the unsafe automation.webhook destination, standing approvals, and P8-W0 reconciliation.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "export const AUTOMATION_WEBHOOK_DESTINATION = defineEffectDestination("
+        },
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async #prepareWebhook("
+        },
+        {
+          "file": "packages/work/test/integration/automations-effects.test.ts",
+          "contains": "'AT-567 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-effects.test.ts",
+          "contains": "'AT-568 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-effects.test.ts",
+          "contains": "'AT-569 "
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-585 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Delays persist a wake time and resume through a continuation job; date and schedule triggers use the scheduler with explicit zones and stable occurrence keys.",
+      "evidence": [
+        {
+          "file": "packages/platform/src/jobs.ts",
+          "contains": "reason: 'delay'"
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-554 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-576 "
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-564 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Branches and explicit fallbacks naming typed failures; a fallback never hides an unknown outcome and a fallback run is partial.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/definition.ts",
+          "contains": "fallback"
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-554 "
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-583 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Lineage from trusted causation; a repeated automation or a chain beyond the bound is a skipped run; replays spend nothing.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "loop_guard"
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-555 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Preview runs the same compiler, evaluator, and policy in a rolled-back savepoint and changes nothing.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async previewAutomation("
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-575 "
+        },
+        {
+          "file": "apps/api/test/integration/automations-api.test.ts",
+          "contains": "'AT-578 "
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-580 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Enable, disable, duplicate (disabled, no approvals), immutable revisions, and reassignment.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async duplicateAutomation("
+        },
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async disableAutomation("
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-553 "
+        },
+        {
+          "file": "apps/api/test/integration/automations-api.test.ts",
+          "contains": "'AT-578 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Run history with trigger, decisions, targets, outputs, durations, and typed errors, rendered through current access.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async getAutomationRun("
+        },
+        {
+          "file": "packages/work/test/integration/automations-access.test.ts",
+          "contains": "'AT-559 "
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-580 "
+        },
+        {
+          "file": "apps/web/test/automations.test.tsx",
+          "contains": "explains a run, retries it from the failed step with one key"
+        }
+      ]
+    },
+    {
+      "id": "AUTO-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Retry resumes the failed step under a new operation, keeps succeeded steps, re-authorizes, and is bounded.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async retryAutomationRun("
+        },
+        {
+          "file": "packages/work/test/integration/automations-access.test.ts",
+          "contains": "'AT-558 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-actions.test.ts",
+          "contains": "'AT-563 "
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-580 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Persistent failures alert the owner through 4B once per interval; a success resets the streak.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async consumeOperationState("
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-573 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Finite limits for definitions, graphs, fan-out, chains, steps, concurrency, delays, retries, and monthly runs, reserved atomically and released once.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async #admit("
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-570 "
+        },
+        {
+          "file": "docs/engineering/environments.md",
+          "contains": "AUTOMATION_RUNS_PER_MONTH"
+        }
+      ]
+    },
+    {
+      "id": "AUTO-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "10A"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "Measured usage against technical limits; the plan entitlement is labelled unavailable until 10A.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async automationUsage("
+        },
+        {
+          "file": "apps/web/src/automations/pages.tsx",
+          "contains": "Not available yet"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-570 "
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-580 "
+        }
+      ]
+    },
+    {
+      "id": "RPT-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8A",
+      "note": "Automation success and failure rates through the 5D metric port (automation.rates), viewer-computed; agent rates stay with 8C.",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics-8a.ts",
+          "contains": "key: 'automation.rates'"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-577 "
+        }
+      ]
+    },
+    {
+      "id": "ONB-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8A",
+      "note": "Reusable automation starter templates (the catalog stays with 10B).",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/templates.ts",
+          "contains": "export const STARTER_TEMPLATES"
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-586 "
+        }
+      ]
+    },
+    {
+      "id": "NTF-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8A",
+      "note": "Monthly automation usage thresholds raise metering.usage.threshold_reached for the automation.runs meter through 4B.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "data: { meter: 'automation.runs', threshold_bp: top },"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-570 "
+        }
+      ]
+    },
+    {
+      "id": "REL-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8A",
+      "note": "Automation failures are shown to the affected owner (automation_failure) and on run pages.",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/fanout.ts",
+          "contains": "automation.automation_run.failed"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-573 "
+        }
+      ]
+    },
+    {
+      "id": "ADM-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8A",
+      "note": "Scoped automation health (runs by status over 30 days, failures in a row, suspension).",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async automationHealth("
+        },
+        {
+          "file": "apps/api/test/integration/automations-api.test.ts",
+          "contains": "'AT-578 "
+        }
+      ]
+    },
+    {
+      "id": "LA-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8A",
+      "note": "Failed, refused, partial, and unknown-outcome automation runs are visible and never reported as successful.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "const status: AutomationRunStatus = failedSteps ? 'partial' : 'succeeded';"
+        },
+        {
+          "file": "packages/work/test/integration/automations-effects.test.ts",
+          "contains": "'AT-568 "
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-580 "
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "One engine, definitions as data",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D1 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-552 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "Drafts and immutable revisions",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D2 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-553 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "A typed compiler and action matrix",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D3 |"
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-566 "
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-582 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "One evaluator, opaque hidden inputs",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D4 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-access.test.ts",
+          "contains": "'AT-560 "
+        },
+        {
+          "file": "packages/work/test/unit/automation-definition.test.ts",
+          "contains": "'AT-588 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Attribution and lineage",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D5 |"
+        },
+        {
+          "file": "packages/platform/src/outbox.ts",
+          "contains": "ADR-0046 D5"
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-555 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "Fenced steps, durable delays",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D6 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations.test.ts",
+          "contains": "'AT-554 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "Finite technical limits",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D7 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-570 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "Canonical commands in the worker",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D8 |"
+        },
+        {
+          "file": "packages/db/migrations/0062_automation_engine.up.sql",
+          "contains": "ADR-0046 D8"
+        },
+        {
+          "file": "packages/work/test/integration/automations-actions.test.ts",
+          "contains": "'AT-561 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "Webhooks through the effect ledger",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D9 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-effects.test.ts",
+          "contains": "'AT-568 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "Standing outbound approval",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D10 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-effects.test.ts",
+          "contains": "'AT-567 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "adr_row": "D11",
+      "title": "The run principal",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D11 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-access.test.ts",
+          "contains": "'AT-556 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-access.test.ts",
+          "contains": "'AT-558 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "adr_row": "D12",
+      "title": "AI drafts through the gateway",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D12 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-571 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D12 |"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "adr_row": "D13",
+      "title": "Typed future boundaries",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D13 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-572 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D13 |"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "adr_row": "D14",
+      "title": "Retry, cancel, disable",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D14 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-access.test.ts",
+          "contains": "'AT-558 "
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-580 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D14 |"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "adr_row": "D15",
+      "title": "Alerts and usage notices",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D15 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-573 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D15 |"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "adr_row": "D16",
+      "title": "Truthful outcomes and health",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D16 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-577 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D16 |"
+        }
+      ]
+    },
+    {
+      "id": "D17",
+      "adr_row": "D17",
+      "title": "Lifecycle",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D17 |"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-574 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D17 |"
+        }
+      ]
+    },
+    {
+      "id": "D18",
+      "adr_row": "D18",
+      "title": "Surfaces",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D18 |"
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-580 "
+        },
+        {
+          "file": "e2e/automations.spec.ts",
+          "contains": "'AT-581 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D18 |"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "9B",
+      "statement": "Test-result triggers are a typed boundary refused at activation until 9B provides a real contract."
+    },
+    {
+      "id": "8C",
+      "statement": "Agent-result triggers and agent workflows are refused at activation until the 8B/8C runtime; agent rates stay separate."
+    },
+    {
+      "id": "10A",
+      "statement": "Usage is measured against technical limits; plan entitlements are labelled unavailable."
+    },
+    {
+      "id": "10B",
+      "statement": "Five starter templates only; no catalog or distribution."
+    },
+    {
+      "id": "PRODUCTION-AI",
+      "statement": "No production AI provider is configured; verification uses the deterministic fixture; no live or paid call."
+    },
+    {
+      "id": "NO-EXACTLY-ONCE",
+      "statement": "Automation webhooks are unsafe: no automatic duplicate after ambiguity and authorized reconciliation, never exactly-once delivery."
+    },
+    {
+      "id": "MANUAL",
+      "statement": "No new screen-reader or real-device claims; those checks stay manual."
+    },
+    {
+      "id": "REL-FU-P7-01",
+      "statement": "Still tracked (ADR-0045); not resolved by 8A."
+    },
+    {
+      "id": "TEST-FU-P7-02",
+      "statement": "Still tracked (ADR-0045); not claimed resolved."
+    }
+  ]
+}

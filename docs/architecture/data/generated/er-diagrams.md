@@ -460,10 +460,15 @@ erDiagram
 ```mermaid
 erDiagram
   record ||--|| automation : "envelope"
-  automation ||--o{ automation_version : "contains"
+  automation ||--o{ automation_revision : "contains"
   operation ||--|| automation_run : "extends"
-  automation_run }o..o{ automation_version : "references"
+  automation_run }o..o{ automation_revision : "references"
   automation_run ||--o{ automation_step_run : "contains"
+  automation ||--o{ automation_standing_approval : "contains"
+  automation_standing_approval }o..o{ automation_revision : "references"
+  automation_standing_approval }o..o{ webhook_subscription : "references"
+  automation ||--o{ automation_trigger_schedule : "contains"
+  automation_trigger_schedule }o..o{ automation_revision : "references"
 ```
 
 ## Agents and execution control

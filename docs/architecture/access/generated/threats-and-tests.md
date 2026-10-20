@@ -149,6 +149,13 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-139 | staleness | A worker that crashes or loses its lease after an external effect may have left (after the claim, after the receiver applied it, or while storing the outcome) lets a later attempt resend it to an unsafe destination, or records it as not sent, or reports the operation succeeded. | I-14 | AT-539, AT-540, AT-541, AT-542, AT-544, AT-545, AT-548, AT-550 |
 | T-140 | spoofing | A stale worker's late result, a caller relabelling an unsafe destination as safe, or an effect key reused for another destination overwrites the authoritative ledger state or bypasses recovery. | I-14 | AT-541, AT-543, AT-546 |
 | T-141 | agent_scope | An unknown effect is reconciled without authority: by a member, a token, a stale or forged version, another workspace, or a replayed completed request after the reconciler lost access; or a human decision is presented as proof from the destination. | I-09 | AT-547, AT-548, AT-549, AT-551 |
+| T-142 | agent_scope | An automation acts beyond its accountable owner's current authority: through a broad declared or workspace scope, the trigger author's or the worker's identity, a guest or narrower configurer, or an action the owner cannot grant. | I-14, I-11 | AT-556, AT-561, AT-562, AT-572, AT-578, AT-584 |
+| T-143 | revocation | Revocation or departure is not honoured between preview and activation, before a delayed step, on retry, on a completed-key replay, or when history is rendered, so a run keeps acting or showing what its owner or viewer lost. | I-12, I-10 | AT-554, AT-558, AT-559, AT-574, AT-580, AT-581 |
+| T-144 | inference | Hidden records or fields leak through automations: an unreadable input treated as false or used as a branch hint, or disclosed by preview, run history, errors, notifications, metrics, or health. | I-07, I-08, I-18 | AT-559, AT-560, AT-573, AT-575, AT-577, AT-579, AT-587, AT-588 |
+| T-145 | spoofing | Automation lineage is forged or reset (a payload claims a cause, a replay spends new budget), so rules trigger each other without bound or a cycle goes unnoticed. | I-09, I-01 | AT-555 |
+| T-146 | agent_scope | An automation discloses or acts externally without a human's exact standing approval, resends after an ambiguous outcome, hides unknown liability behind a fallback, or approves or applies generated changes itself. | I-15, I-16, I-14 | AT-567, AT-568, AT-569, AT-571, AT-583, AT-585 |
+| T-147 | cross_workspace | Automation triggers, runs, identifiers, or worker writes cross a workspace boundary, or the worker writes columns the canonical commands never write. | I-03, I-02 | AT-557 |
+| T-148 | staleness | A run executes something other than what was activated: a draft edit changes the active revision, a redelivered event runs under a newer revision or twice, unsupported configuration is silently ignored, or limits are reserved or released twice. | I-01, I-09 | AT-552, AT-553, AT-563, AT-564, AT-565, AT-566, AT-570, AT-576, AT-582, AT-586 |
 
 ## Test matrix
 
@@ -705,6 +712,43 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-549 | T-141 | owner | HTTP listing and reconciliation with step-up and replay; bearer tokens refused — workspace | `operation.reconcile_effect` | api | **allow** | ok | error_message |
 | AT-550 | T-139 | system_job | The REL-FU-7A-01 regression: a worker dies after an unsafe send; the survivor never sends it again — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
 | AT-551 | T-141 | api_token_personal | A delegated token of the same owner membership on first execution and on the replay of a completed reconciliation key (same key, fingerprint, and request) — workspace | `operation.reconcile_effect` | api | **deny** | forbidden | error_message |
+| AT-552 | T-148 | automation | A field-change trigger after activation, the canonical command run as the automation on behalf of its owner — brand | `record.update` | activity | **allow** | ok | — |
+| AT-553 | T-148 | system_job | The same event redelivered after the automation was edited and activated again, and two workers consuming it at once — brand | `record.update` | activity | **deny** | empty | — |
+| AT-554 | T-143 | automation | A delayed run whose link target is trashed while it waits; the worker restarts before the wake — task | `record.relate` | activity | **deny** | error_generic | — |
+| AT-555 | T-145 | automation | Two rules that trigger each other, a rule that triggers itself, a chain longer than the bound, and an idempotent replay — brand | `record.update` | activity | **deny** | error_generic | — |
+| AT-556 | T-142 | member | Every role, a guest, and a record share attempt to create, read, activate, and run brand automations, including in a sensitive brand without a grant — brand | `automations.configure` | api | **deny** | not_found | ui_list, error_message |
+| AT-557 | T-147 | automation | Three workspaces with automations on the same trigger; events, lists, runs, and identifiers of the others — cross-workspace | `record.read` | api | **deny** | not_found | ui_list, activity, notification_inapp |
+| AT-558 | T-143 | automation | The owner loses brand authority between preview and activation, while a run waits on a delay, and before a retry — brand | `record.update` | activity | **deny** | suspended | — |
+| AT-559 | T-143, T-144 | member | A former configurer opens run history after losing the brand; the owner departs — brand | `automations.configure` | ui_record | **deny** | not_found | activity, notification_inapp |
+| AT-560 | T-144 | automation | A condition on a custom field the owner cannot read — record | `record.read` | activity | **deny** | omitted | activity, audit_display |
+| AT-561 | T-142 | automation | Each supported task action through its canonical command, attributed to the automation on behalf of its owner — task | `record.update` | audit_display | **allow** | ok | — |
+| AT-562 | T-142 | automation | Project update, schedule, notify, and archive; project create, assign, move, label, and relate — project | `record.update` | api | **deny** | validation_generic | — |
+| AT-563 | T-148 | automation | Custom workflow gates, required fields, a cross-brand move, an approved-time lock, and a concurrent edit of the target — task | `record.update` | api | **deny** | conflict_filtered | — |
+| AT-564 | T-148 | system_job | Schedules across a daylight-saving change in an explicit zone — workspace | `automation.run_manual` | api | **allow** | ok | — |
+| AT-565 | T-148 | member | A definition compiled to its canonical form — brand | `automations.configure` | api | **allow** | ok | — |
+| AT-566 | T-148 | member | Unsupported triggers, actions, fields, and parameters in a definition — brand | `automations.configure` | api | **deny** | validation_generic | — |
+| AT-567 | T-146 | owner | Activating a webhook step without step-up, with a changed field set, destination, or revision — brand | `webhooks.manage` | api | **deny** | step_up_required | — |
+| AT-568 | T-146 | system_job | A worker crash before and after the webhook leaves; the receiver counts deliveries — workspace | `operation.reconcile_effect` | webhook_payload | **deny** | approval_required | — |
+| AT-569 | T-146 | system_job | A stale claimant reports after its lease was lost and the run waits for reconciliation — workspace | `operation.reconcile_effect` | webhook_payload | **deny** | error_generic | — |
+| AT-570 | T-148 | system_job | Competing workers admit runs at the concurrency and monthly limits; terminal accounting replayed — workspace | `automation.run_manual` | api | **deny** | error_generic | — |
+| AT-571 | T-146 | automation | An AI draft step with AI off, without a provider, and with the fixture provider — brand | `ai.execute` | ai_answer | **deny** | approval_required | — |
+| AT-572 | T-142 | member | Test-result and agent-result triggers and an agent workflow step at activation — brand | `automations.configure` | api | **deny** | validation_generic | — |
+| AT-573 | T-144 | system_job | Repeated failures alert the owner once per interval; a success resets the streak — brand | `record.read` | notification_inapp | **allow** | ok_filtered | — |
+| AT-574 | T-143 | owner | Archive, restore, and purge of an automation with open and finished runs — brand | `record.archive` | trash | **allow** | ok | — |
+| AT-575 | T-144 | member | Preview with a readable record and with a record outside the automation's scope — brand | `automation.run_manual` | api | **allow** | ok_filtered | — |
+| AT-576 | T-148 | system_job | Date and schedule sweeps repeated for the same occurrence — workspace | `automation.run_manual` | api | **deny** | empty | — |
+| AT-577 | T-144 | member | Automation rates for two viewers with the same access and for a viewer without health access — workspace | `health.view` | report | **deny** | not_found | report, count_facet |
+| AT-578 | T-142 | owner | Create from a template, edit with If-Match, preview, activate, version, duplicate, run, cancel, disable over HTTP — brand | `automations.configure` | api | **allow** | ok | — |
+| AT-579 | T-144 | guest | Members without authority, guests, unknown identifiers, and unsupported configuration over HTTP — brand | `automations.configure` | api | **deny** | not_found | api, error_message |
+| AT-580 | T-143 | owner | The browser journey: starter, preview, activation, a real trigger, branch and wait, a refused step, a safe retry — brand | `automations.configure` | ui_record | **allow** | ok | — |
+| AT-581 | T-143 | member | A brand manager loses the brand while editing an automation in the browser — brand | `automations.configure` | ui_record | **deny** | not_found | ui_list, ui_record |
+| AT-582 | T-148 | member | Dangling references, cycles, unreachable steps, and depth, node, and size caps — brand | `automations.configure` | api | **deny** | validation_generic | — |
+| AT-583 | T-146 | member | A fallback naming an unknown external outcome — brand | `automations.configure` | api | **deny** | validation_generic | — |
+| AT-584 | T-142 | member | Future triggers and agent actions in a definition — brand | `automations.configure` | api | **deny** | validation_generic | — |
+| AT-585 | T-146 | member | A webhook step without an exact destination or with a field outside the structural allow-list — brand | `automations.configure` | api | **deny** | validation_generic | — |
+| AT-586 | T-148 | member | Every starter template with its values supplied — brand | `automations.configure` | api | **allow** | ok | — |
+| AT-587 | T-144 | automation | Nested AND/OR conditions with short-circuit decisions and relative dates — record | `record.read` | activity | **allow** | ok | — |
+| AT-588 | T-144 | automation | A custom field the automation cannot read in a condition and a branch — record | `record.read` | activity | **deny** | omitted | activity, audit_display |
 
 ## Response shapes
 

@@ -243,6 +243,12 @@ const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 const monthStart = (d: Date) =>
   `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`;
 
+/**
+ * The risk label of an automation's operations: 0C has one automation execution action (R2, no
+ * step-up), whether a run is triggered or started by hand.
+ */
+const AUTOMATION_RUN_ACTION = 'automation.run_manual';
+
 export class AutomationService extends AiGatewayService {
   // ---------------------------------------------------------------------------------------------
   // Attribution: under an automation caller, every canonical command records the automation as
@@ -1993,7 +1999,7 @@ export class AutomationService extends AiGatewayService {
         brand_ids: input.revision.declared_brand_ids,
         project_ids: input.revision.declared_project_ids,
       },
-      risk: { actionKey: 'automation.run_manual', riskClass: 'R2' },
+      risk: { actionKey: AUTOMATION_RUN_ACTION, riskClass: 'R2' },
       dataClassLimit: 'C2',
     };
     await sql`SAVEPOINT automation_admit`.execute(tx.db);

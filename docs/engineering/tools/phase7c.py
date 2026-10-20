@@ -126,7 +126,8 @@ def check_migration():
     # Later migrations belong to later phases, each held by its own validator.
     later_owned = {"0058_ai_briefings.up.sql": "phase7e.py", "0059_planning_capture.up.sql": "phase7f.py",
                    "0060_phase7_integration.up.sql": "phase7.py",
-                   "0061_effect_recovery_safety.up.sql": "phase8w0.py"}
+                   "0061_effect_recovery_safety.up.sql": "phase8w0.py",
+                   "0062_automation_engine.up.sql": "phase8a.py"}
     after = names[names.index("0057_ai_drafting_analysis.up.sql") + 1:] if "0057_ai_drafting_analysis.up.sql" in names else ["?"]
     for n in after:
         if n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])):

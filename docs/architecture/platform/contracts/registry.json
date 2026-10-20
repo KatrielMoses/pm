@@ -5868,6 +5868,10 @@
     {
       "type": "hidden_dependency_affects_assignee",
       "requirement": "TSK-013"
+    },
+    {
+      "type": "automation_notice",
+      "requirement": "AUTO-005"
     }
   ],
   "telemetry": [
@@ -8502,6 +8506,86 @@
       "name": "AI_HISTORY_RETENTION_DAYS",
       "meaning": "Technical content retention for AI history; unset keeps content (OD-36 undecided).",
       "owner": "7A"
+    },
+    {
+      "name": "AUTOMATIONS_PER_WORKSPACE_MAX",
+      "meaning": "Technical automation limit: automations (not purged) per workspace; default 200, range 1\u20132000.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_DEFINITION_BYTES_MAX",
+      "meaning": "Technical automation limit: canonical bytes of one definition; default 32768, range 1024\u201365536.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_NODES_MAX",
+      "meaning": "Technical automation limit: steps in one definition; default 25, range 1\u2013100.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_CONDITION_DEPTH_MAX",
+      "meaning": "Technical automation limit: nesting of AND/OR groups; default 4, range 1\u20138.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_CONDITIONS_MAX",
+      "meaning": "Technical automation limit: comparisons in one definition; default 20, range 1\u201350.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_TARGET_FANOUT_MAX",
+      "meaning": "Technical automation limit: records one action step may select; default 25, range 1\u2013200.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_CHAIN_DEPTH_MAX",
+      "meaning": "Technical automation limit: automations in one causal chain; default 3, range 1\u201310.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_RUN_STEPS_MAX",
+      "meaning": "Technical automation limit: steps executed by one run; default 50, range 1\u2013200.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_ACTIVE_RUNS_MAX",
+      "meaning": "Technical automation limit: open runs of one automation; default 20, range 1\u2013200.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_DELAY_HORIZON_MINUTES",
+      "meaning": "Technical automation limit: longest single delay; default 43200, range 1\u2013129600.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_RETRIES_MAX",
+      "meaning": "Technical automation limit: manual retries of one run; default 3, range 0\u201310.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_RUNS_PER_MONTH",
+      "meaning": "Technical automation limit: runs admitted per workspace per month; default 10000, range 1\u20131000000. Reserved atomically at admission and counted once; not a plan entitlement (10A).",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_TRIGGER_FANOUT_MAX",
+      "meaning": "Technical automation limit: automations one event may start; default 50, range 1\u2013200.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_SWEEP_BATCH_MAX",
+      "meaning": "Technical automation limit: workspaces visited, and due date and schedule triggers taken per workspace, in one sweep; default 100, range 1\u20131000.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_ALERT_FAILURE_THRESHOLD",
+      "meaning": "Technical automation limit: consecutive failed runs before the owner is alerted; default 3, range 1\u201320.",
+      "owner": "8A"
+    },
+    {
+      "name": "AUTOMATION_ALERT_INTERVAL_MINUTES",
+      "meaning": "Technical automation limit: least time between two failure alerts for one automation; default 1440, range 60\u201310080.",
+      "owner": "8A"
     }
   ],
   "sse_topics": [

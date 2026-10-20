@@ -252,7 +252,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `ai.limits.configure` | Configure AI/agent/automation allowances and hard caps. | none | AI-033, BILL-009 | Phase 7A (AZ-44): monthly allowances and hard limits per meter, and reconciliation of an unknown AI dispatch cost; session only, step-up. |
 | `operation.reconcile_effect` | Decide an external effect whose outcome is unknown: sent, send again, or abandon. | none | REL-006 | P8-W0 (platform effect recovery): an authorized, version-bound, audited, idempotent decision on an unknown effect outcome; session only, step-up; never presented as proof from the destination. |
 | `agents.configure` | Create agent profiles; grant scopes and tool classes (within grantor authority). | none | AGT-001, AGT-002 |  |
-| `automations.configure` | Create/enable automations within the configurer's authority. | none | AUTO-001, AUTO-013 |  |
+| `automations.configure` | Create/enable automations within the configurer's authority. | none | AUTO-001, AUTO-013 | 8A (AZ-51): also activation, duplication, and reassignment; the activator and the accountable owner both need grantable authority for every declared brand and action. Never delegable to tokens. |
 | `integrations.configure` | Connect, map, reauthorize, disconnect integrations. | none | INT-001, INT-008, PERM-009 |  |
 | `api_tokens.service.manage` | Create and manage service principals and their tokens. | none | INT-017, ADM-007 |  |
 | `webhooks.manage` | Manage outbound webhooks and inbound endpoints. | none | INT-010, INT-011, ADM-007 |  |
@@ -276,7 +276,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `agent.assign` | Assign a task to an agent and start runs. | none | AGT-003, LA-008 |  |
 | `agent.run_control` | Pause, resume, cancel, or retry a run (assigner or task manager). | none | AGT-009 |  |
 | `agent.action_approve` | Approve a gated agent action class (external message, publish, spend, access, destructive, production, scope expansion). | designated_human | AGT-016, AGT-017 |  |
-| `automation.run_manual` | Run or test an automation manually. | none | AUTO-012 |  |
+| `automation.run_manual` | Run or test an automation manually. | none | AUTO-012 | 8A (AZ-51): also preview, and the risk label of every automation run. A run executes as its accountable owner, narrowed to the declared and snapshotted brands the owner can still configure. |
 | `integration.sync_now` | Trigger a sync on a connection. | none | INT-006 |  |
 | `import.execute` | Run an import into a scope. | none | DATA-001, LA-005 |  |
 | `webhook.test_send` | Send a test delivery to an outbound webhook. | none | INT-011 |  |
