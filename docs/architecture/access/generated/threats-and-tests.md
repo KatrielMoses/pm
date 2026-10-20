@@ -169,6 +169,8 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-159 | revocation | A connector test is applied after its settings changed or its requester lost authority, sends task context or secrets to the peer, or a synthetic fixture result is presented as a live verification. | I-12, I-14, I-16 | AT-606, AT-607, AT-618, AT-627 |
 | T-160 | departure | An owner or assigner departs or loses authority, or a profile is archived, trashed, disconnected, or purged, and the agent stays ready, assignments stay active, or a secret reference survives. | I-10, I-12, I-16 | AT-599, AT-600, AT-612, AT-619 |
 | T-161 | staleness | Concurrent creations or assignments exceed the workspace profile limit, the per-task limit, or the one-active-assignment rule, or readiness claims a model or a connector that is not available now (an invented run). | I-01, I-13 | AT-609, AT-610, AT-625, AT-628, AT-630, AT-631, AT-632 |
+| T-162 | inference | A task reader learns how many brands, projects, records, or integrations an assignment or profile holds that they cannot open, from a hidden count, total, flag, or placeholder in the scope view, preview, or panel, and so tells otherwise identical assignments apart. | I-07, I-08 | AT-634, AT-635, AT-639, AT-640, AT-642 |
+| T-163 | revocation | An assigner who lost agent.assign on the task (a role or grant downgrade that keeps read access, or a workspace policy change), or a task that became archived or trashed, leaves a stored assignment shown as assigned and handed to execution as eligible, because readiness checks readability instead of current assignment authority. | I-11, I-12, I-14 | AT-636, AT-637, AT-638, AT-639, AT-641, AT-642 |
 
 ## Test matrix
 
@@ -807,6 +809,15 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-631 | T-161 | owner | Concurrent profile creations at the workspace limit — workspace | `agents.configure` | api | **deny** | conflict_filtered | error_message |
 | AT-632 | T-158, T-161 | owner | Browser journey: starter, scope, synthetic test, activation, assignment by preview, offline, accessibility — task | `agent.assign` | ui_record | **allow** | ok | — |
 | AT-633 | T-157 | member | Browser: a member without the agent policy; an unreadable task — task in another brand | `agents.configure` | ui_record | **deny** | not_found | error_message, ui_list |
+| AT-634 | T-162 | read_only | Assignments differing only in zero, one, and three hidden scope items in another brand — task | `record.read` | ui_record | **deny** | omitted | count_facet, ui_record |
+| AT-635 | T-162 | owner | A broad configurer reads every selected item; a reader revoked after a first read — revocation, trash, and departure | `record.read` | ui_record | **allow** | ok | — |
+| AT-636 | T-163 | member | Assigner downgraded from edit to view on the brand, still reading the task — assigner lost access mid-run | `agent.assign` | api | **deny** | forbidden | error_message |
+| AT-637 | T-163 | limited_member | The workspace policy that let limited members assign agents is turned off — assigner lost access mid-run | `agent.assign` | api | **deny** | forbidden | error_message |
+| AT-638 | T-163 | owner | Assigned task archived, then trashed, then restored — trashed record, current access revoked | `agent.assign` | api | **deny** | ok_filtered | error_message |
+| AT-639 | T-163, T-162 | owner | A context item the owner can read but the assigner no longer can — assigner lost access mid-run | `agent.assign` | ui_record | **deny** | ok_filtered | ui_record |
+| AT-640 | T-162 | guest | HTTP: a share-only reader compares assignments with and without a hidden project — shared task's context | `record.read` | api | **deny** | omitted | api, count_facet |
+| AT-641 | T-163 | guest | HTTP: every reader sees the downgraded assigner's assignment blocked; the assigner cannot assign — assigner lost access mid-run | `agent.assign` | api | **deny** | forbidden | error_message |
+| AT-642 | T-163, T-162 | member | Browser: the task panel after the assigner is downgraded to view — assigner lost access mid-run | `agent.assign` | ui_record | **deny** | ok_filtered | ui_record |
 
 ## Response shapes
 

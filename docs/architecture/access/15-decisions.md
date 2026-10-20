@@ -667,4 +667,7 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:**
   - An agent membership or service principal with its own grants (a parallel authority that outlives its humans).
   - Assignment scope read live from the profile (silent widening).
-- **Consequences:** Threats T-152 to T-161 with tests AT-595 to AT-633. No new action; the action count stays 123. Execution, run credentials, and tool calls are 8C; per-instance approval and acceptance are 8D.
+- **Corrective review 01:**
+  - **Hidden scope is omitted, never counted (R1).** Scope and context views name only items the viewer can open; there is no count, total, flag, or placeholder, so assignments that differ only in hidden items are indistinguishable. Readers who cannot configure agents see profile readiness only as `agent_not_ready`. Threat T-162 with tests AT-634, AT-635, AT-640.
+  - **Readable is not assignable (R2).** One eligibility rule decides preview, save, edit, readiness, and the 8C handoff: the task is active and the original assigner holds `agent.assign` on it now (loaded as that assigner, no shares). A downgrade that keeps read access, a policy change, or an archived or trashed task blocks the assignment for every reader; the live ceiling (stored ∩ current profile, assigner, and owner) is kept apart from the stored history. Threat T-163 with tests AT-636 to AT-639, AT-641, AT-642.
+- **Consequences:** Threats T-152 to T-163 with tests AT-595 to AT-642. No new action; the action count stays 123. Execution, run credentials, and tool calls are 8C; per-instance approval and acceptance are 8D.

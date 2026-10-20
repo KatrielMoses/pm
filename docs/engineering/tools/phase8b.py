@@ -37,8 +37,8 @@ MODULE = "packages/work/src/agents"
 UP = "packages/db/migrations/0064_agent_profiles_connectors.up.sql"
 DOWN = "packages/db/migrations/0064_agent_profiles_connectors.down.sql"
 PROBE = "docs/engineering/tools/phase8b-probe.ts"
-THREATS = ["T-%d" % i for i in range(152, 162)]
-TESTS = ["AT-%d" % i for i in range(595, 634)]
+THREATS = ["T-%d" % i for i in range(152, 164)]
+TESTS = ["AT-%d" % i for i in range(595, 643)]
 TABLES = ["agent_profile", "agent_profile_revision", "agent_scope_grant", "agent_tool_grant", "agent_connector",
           "agent_connector_test", "agent_assignment", "agent_assignment_revision"]
 TEMPLATES = ["development", "research", "growth", "documentation", "testing"]
@@ -261,7 +261,7 @@ def check_identifiers():
             errs.append("%s must cover an 8B threat" % at)
         if len(seen.get(at, [])) != 1:
             errs.append("%s must title exactly one test (found %d)" % (at, len(seen.get(at, []))))
-    for term in ("T-152–T-161", "AT-595–AT-633", "ADR-52, AZ-52, PL-54, UXD-33"):
+    for term in ("T-152–T-163", "AT-595–AT-642", "ADR-52, AZ-52, PL-54, UXD-33"):
         if term not in adr:
             errs.append("ADR-0047 must cite %s" % term)
     for path, anchor in (("docs/architecture/data/12-decisions.md", "adr-52"), ("docs/architecture/access/15-decisions.md", "az-52"),
@@ -312,7 +312,7 @@ def check_identifiers():
     tools = load(P("docs/architecture/platform/contracts/agent-tools.json"))
     if not tools:
         errs.append("the agent tool registry source is missing")
-    return errs, "T-152..T-161, AT-595..AT-633 titled once, ADR-52/AZ-52/PL-54/UXD-33, 0B entities, 12 limits and the transport, contracts"
+    return errs, "T-152..T-163, AT-595..AT-642 titled once, ADR-52/AZ-52/PL-54/UXD-33, 0B entities, 12 limits and the transport, contracts"
 
 
 def check_closure_and_boundaries(closure):
@@ -348,6 +348,63 @@ def check_closure_and_boundaries(closure):
     if "Assigned; execution available in Phase 8C." not in web:
         errs.append("the task Agent section must say execution is available in Phase 8C")
     return errs, "candidate under a proposed ADR; boundaries 8C/8D/10A/10B, production connectors and AI, manual, follow-ups"
+
+
+def check_review01(closure):
+    """8B-CR-01: hidden scope is omitted (R1); one assignment eligibility rule (R2)."""
+    errs = []
+    cache = {}
+    service = read(P(SERVICE))
+    scope = block(service, "  async #scopeView(", "\n  }\n")
+    if not scope or "not_shown" in service or "hidden" in scope or "return { items: out };" not in scope:
+        errs.append("R1: the scope renderer must omit hidden items with no count or flag")
+    web = read(P("apps/web/src/agents/pages.tsx")) + read(P("apps/web/src/agents/client.ts"))
+    if "not_shown" in web or "you cannot open." in web.replace("No items you can open.", ""):
+        errs.append("R1: the web app must not render a hidden count")
+    if "decision.reasons.map((r) => (ASSIGNMENT_REASONS.has(r) ? r : 'agent_not_ready'))" not in service:
+        errs.append("R1: profile facts must collapse to agent_not_ready for readers who cannot configure")
+    elig = block(service, "  async #assignerEligibility(", "\n  }\n")
+    for term, label in [("this.loadTask(tx, assigner, rec.public_id)", "the task loaded as the original assigner"),
+                        ("this.#requireAssignable(assigner, t)", "the shared agent.assign and lifecycle rule"),
+                        ("rec.lifecycle_state !== 'active'", "task lifecycle eligibility")]:
+        if term not in elig:
+            errs.append("R2: assigner eligibility lacks %s" % label)
+    decide = block(service, "  async #decide(", "\n  /**")
+    if "this.#assignerEligibility(tx, assigner, a.task_id)" not in decide or "'scope_lost'" not in decide:
+        errs.append("R2: readiness must use the shared eligibility rule and the live ceiling")
+    for name in ("  async previewAgentAssignment(", "  async assignAgent(", "  async updateAgentAssignment("):
+        body = service[service.find(name):service.find(name) + 900] if name in service else ""
+        if "this.#requireAssignable(p, t);" not in body:
+            errs.append("R2: %s must use the shared eligibility rule" % name.strip())
+    if "protected async agentAssignmentEligibility(" not in service:
+        errs.append("R2: the 8C handoff must be the shared decision")
+    if "agentAssignmentEligibility(tx, task, profile)" not in read(P(ADR)):
+        errs.append("ADR-0047 D18 must name the 8C handoff")
+    crs = {r["id"]: r for r in closure.get("corrective_reviews", [])}
+    cr = crs.get("8B-CR-01")
+    if not cr or cr.get("reviewed_head") != "96f640dc20f114ad8d1de2c61bb33d9b7bf6ed85":
+        errs.append("the closure must record corrective review 8B-CR-01 on 96f640d")
+    else:
+        groups = {g["id"]: g for g in cr.get("groups", [])}
+        for gid in ("R1", "R2"):
+            g = groups.get(gid)
+            if not g:
+                errs.append("8B-CR-01 lacks %s" % gid)
+                continue
+            phase2.check_evidence("8B-CR-01 %s" % gid, g.get("evidence"), cache, errs)
+            if "fails on 96f640d" not in g.get("old_code", ""):
+                errs.append("8B-CR-01 %s must record its observed old-code result" % gid)
+    if "## Corrective review 01 (8B-CR-01)" not in read(P(ADR)):
+        errs.append("ADR-0047 must record corrective review 01")
+    # The accepted records describe omission: no decision row, UX rule, or operator note encodes a
+    # hidden counter (the review table may name the old field when describing the finding).
+    adr = read(P(ADR))
+    rows = "\n".join(l for l in adr.split("\n") if re.match(r"^\| D\d+ \|", l))
+    ux = block(read(P("docs/ux/09-decisions-and-risks.md")), '<a id="uxd-33"></a>', "## 4.")
+    for label, text in (("ADR-0047 decisions", rows), ("UXD-33", ux), ("agents.md", read(P("docs/engineering/agents.md")))):
+        if re.search(r"others (are )?counted|not_shown|\bmore items? you cannot open", text):
+            errs.append("%s still encodes a hidden counter" % label)
+    return errs, "R1 omission with no counter; R2 one eligibility rule for preview, save, edit, readiness, and the 8C handoff; old-code results"
 
 
 def check_wiring():
@@ -391,6 +448,7 @@ def main():
         ("phase 8B: one agent service on the platform", check_service()),
         ("phase 8B: migration 0064", check_migration()),
         ("phase 8B: identifiers, contracts, and limits", check_identifiers()),
+        ("phase 8B: corrective review 01", check_review01(closure)),
         ("phase 8B: wiring", check_wiring()),
         ("phase 8B: migration sequence", phase1.check_migrations()),
     ]

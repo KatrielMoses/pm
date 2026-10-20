@@ -651,3 +651,4 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - The down migration restores the exact 0063 catalog and refuses, with counts, while any agent profile or assignment exists (forced row-level security lifted for that one check).
   - Workspace purge deletes assignment revisions, assignments, connector tests, connectors, grants, revisions, and profiles before `exec.operation` and `core.record`; purge refuses while a connector still holds a secret reference.
   - Agent runs, tool calls, and artifacts (`agent_run`, `agent_tool_call`) remain 8C.
+- **Corrective review 01 (Phase 8B):** no schema change. The stored ceiling on `agents.agent_assignment_revision` is history, as confirmed; the usable (live) ceiling is derived on every read from it, the pinned and current profile grants, and the assigner's and owner's current access, and is never stored.

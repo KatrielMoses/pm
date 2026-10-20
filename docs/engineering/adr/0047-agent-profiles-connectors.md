@@ -26,9 +26,9 @@ Phase 0 reserved agents in every contract: the `agt` prefix and the `agents:exec
 | D13 | Capabilities are metadata | The manifest must name protocol `pm-agent/1`, version `1`, and the nonce. Advertised tools are intersected with the registry and the revision's grants; unknown protocols, versions, and unregistered tools are refused or ignored without widening anything. A peer chooses no membership, workspace, or delegation. |
 | D14 | Truthful states; production blocked | Connector states are configured, verified, stale, revoked, and unavailable (and not configured). Without `AGENT_CONNECTOR_TRANSPORT=fixture` tests are `dependency_unavailable`; the fixture is refused when deployed. Fixture verification is labelled synthetic and never marks a live connector verified; live connectors are blocked until an approved secret store and credentials exist (DQ-28). Internal profiles use the gateway's current model availability. |
 | D15 | Assignment is a separate relationship | `agent_assignment` belongs to the task, separate from human assignees, needs `agent.assign` (edit, no shares), and never changes task status. One active assignment per task and profile, with idempotent keys and a per-task limit under the task lock. States are assigned and withdrawn; blocked is derived. |
-| D16 | Structured brief and an only-narrowing ceiling | An immutable assignment revision holds the goal, constraints, deliverable, criteria, context references (never copied content), the pinned profile revision, the assigner, and the stored ceiling = pinned grants ∩ assigner access ∩ explicit scope ∩ owner authority. Every read, edit, and readiness check narrows it again; widening needs a new authorized revision. A structured preview names what is included and refuses the rest in the caller's own terms. |
-| D17 | No leaks through the task panel | Task readers see the agent's name and kind, the brief, and only the context and scope items they can open (others counted); never instructions, grants, connector details, or unreadable titles. Unknown and hidden identifiers are one answer. |
-| D18 | Execution refused; the 8C contract published | `POST /tasks/{tsk}/agents/{agt}:run` is refused (`dependency_unavailable`) and the UI says "Assigned; execution available in Phase 8C". 8C will issue a run-bound, narrowing, revocable credential scoped to the assignment's current ceiling, the pinned tools, and one run, and dispatch through the same protocol and effect boundary (PL-54). 8B mints nothing and sends no assignment. |
+| D16 | Structured brief, one eligibility rule, an only-narrowing ceiling | An immutable assignment revision holds the goal, constraints, deliverable, criteria, context references (never copied content), the pinned profile revision, the assigner, and the stored ceiling (history, as confirmed). One eligibility rule decides preview, save, edit, readiness, and the 8C handoff: the task is active, and the assigner holds `agent.assign` on it now (task edit level, never through a record share) with the task loaded as that assigner; readable is not assignable. The live ceiling = the stored ceiling ∩ the pinned and current profile grants ∩ what the assigner and the owner can reach now; it is computed on every read and never stored. An assignment whose eligibility fails, or whose task is outside the live ceiling, is blocked (`assigner_authority`, `assigner_unavailable`, `task_ineligible`, `scope_lost`). Widening needs a new authorized revision. A structured preview names what is included and refuses the rest in the caller's own terms. |
+| D17 | No leaks through the task panel | Task readers see the agent's name and kind, the brief, and only the context and scope items they can open; every other item is omitted completely, with no count, total, flag, or placeholder, so assignments that differ only in hidden items look the same. Readers who cannot configure agents see profile readiness only as `agent_not_ready`, never which model, connector, or owner fact caused it. The panel separates the scope as assigned (history) from the scope it can use now, and marks readable context that is no longer usable as history. Unknown and hidden identifiers are one answer. |
+| D18 | Execution refused; the 8C contract published | `POST /tasks/{tsk}/agents/{agt}:run` is refused (`dependency_unavailable`) and the UI says "Assigned; execution available in Phase 8C". 8C must call `agentAssignmentEligibility(tx, task, profile)` immediately before issuing a run credential or dispatching, act only when it is eligible, and use only its `ceiling` (the live ceiling) and `tools` (the pinned revision's tools the current revision still grants, at the stricter approval); the credential is run-bound, narrowing, and revocable, and dispatch uses the same protocol and effect boundary (PL-54). 8B mints nothing, sends no assignment, and never calls the handoff to act. |
 | D19 | Finite limits under concurrency | Profiles per workspace (an advisory lock), assignments per task (the task lock), scope and tool grants, context references, criteria, text and configuration sizes, connector timeouts, response bytes, and tests per hour are technical limits with finite defaults and hard maximums, separate from 10A plan entitlements. |
 
 ## Requirement matrix
@@ -52,6 +52,7 @@ Phase 0 reserved agents in every contract: the `agt` prefix and the `agents:exec
 - **Production connectors:** blocked until an approved secret store and credentials exist (DQ-28); only the synthetic local fixture is tested.
 - **Production AI:** unconfigured; internal readiness is verified against the deterministic fixture. No live or paid call.
 - **Manual:** no new screen-reader or live-agent claims; real-device and assistive-technology checks stay manual.
+- **Derived, not stored:** owner authority loss and every assignment block are decided on each read; they are not a durable suspension. Departure is stored (`owner_departed`).
 - **Follow-ups kept open:** REL-FU-P7-01 and TEST-FU-P7-02 (ADR-0045) are not claimed resolved. The 8A and P8-W0 dispatch, replay, and uncertainty regressions stay in the suite unchanged.
 
 ## Evidence
@@ -62,6 +63,9 @@ Phase 0 reserved agents in every contract: the `agt` prefix and the `agents:exec
 | AT-601–AT-607 | packages/work/test/integration/agents-connectors.test.ts |
 | AT-608–AT-614 | packages/work/test/integration/agents-assignments.test.ts |
 | AT-615–AT-619 | packages/work/test/integration/agents-access.test.ts |
+| AT-634–AT-639 | packages/work/test/integration/agents-review01.test.ts (review 01) |
+| AT-640, AT-641 | apps/api/test/integration/agents-api.test.ts (review 01) |
+| AT-642 | e2e/agents.spec.ts (review 01) |
 | AT-620–AT-624 | packages/work/test/unit/agent-config.test.ts |
 | AT-625–AT-629 | apps/api/test/integration/agents-api.test.ts |
 | AT-632, AT-633 | e2e/agents.spec.ts |
@@ -76,8 +80,17 @@ Phase 0 reserved agents in every contract: the `agt` prefix and the `agents:exec
 | Migration | 0064 | `0064_agent_profiles_connectors` |
 | Engineering ADR | 0047 | This record |
 | 0B / 0C / 0D / UX | ADR-52, AZ-52, PL-54, UXD-33 | Data, access, platform, and UX decisions |
-| Threats | T-152–T-161 | Grantability, tool and approval injection, silent widening, confused deputy, delegated configuration, task-panel inference, malicious connectors, stale tests, departure, limits and invented readiness |
-| Tests | AT-595–AT-633 | Above |
+| Threats | T-152–T-163 | Grantability, tool and approval injection, silent widening, confused deputy, delegated configuration, task-panel inference, malicious connectors, stale tests, departure, limits and invented readiness |
+| Tests | AT-595–AT-642 | Above (AT-634–AT-642: corrective review 01) |
 | Operation kind | `agent_connector_test` | Detail `agents.agent_connector_test` |
 | Response types | `agent_profiles`, `agent_templates`, `agent_tools`, `agent_profile_revisions`, `agent_connector_test`, `agent_assignment_preview`, `agent_assignment`, `agent_assignments` | Non-resource envelopes |
 | Effect destination | `agents.connector_test` | `naturally_idempotent` |
+
+## Corrective review 01 (8B-CR-01)
+
+Reviewed head `96f640d` (run 39446672241). Each regression was run against the reviewed source (only `packages/work/src/agents/service.ts` reverted to `96f640d`; the browser case also with the reviewed service) and failed as recorded; all pass after the correction. No schema change; migrations 0001–0064 are unchanged.
+
+| Group | Finding | Correction | Evidence | Observed on `96f640d` |
+|---|---|---|---|---|
+| R1 | `#scopeView` returned `not_shown`, the exact number of grants the viewer could not open, on the task panel, previews, and profile views | Hidden items are omitted completely; the renderer returns `{ items }` only; the UI shows no count; non-configurers see profile readiness as `agent_not_ready` (D17) | AT-634, AT-635, AT-640, component test | Fails: the reader's renderings of otherwise identical assignments differed (`"not_shown":0` against `"not_shown":1`) (AT-634); over HTTP the share-only reader's payloads differed (AT-640) |
+| R2 | Readiness never re-decided the original assigner's `agent.assign` or the task's lifecycle; a readable-but-downgraded assigner left an assignment `assigned` | One eligibility rule (`#requireAssignable`, `#assignerEligibility`) for preview, save, edit, readiness, and the 8C handoff (`agentAssignmentEligibility`); live ceiling and tools exposed separately from the stored ceiling (D16, D18) | AT-636–AT-639, AT-641, AT-642 | Fails: after the downgrade the owner still saw `assigned` (AT-636); after the limited-member policy was turned off, `assigned` (AT-637); an archived task's assignment stayed `assigned` (AT-638); no live ceiling existed, so readable context the assigner lost was indistinguishable from usable scope (AT-639, `effective_scope` undefined); over HTTP the guest saw `model_unconfigured` but no `assigner_authority` (AT-641); the task panel still showed Assigned, not Blocked (AT-642) |

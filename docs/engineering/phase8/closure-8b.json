@@ -785,5 +785,82 @@
       "id": "TEST-FU-P7-02",
       "statement": "Kept open (ADR-0045)."
     }
+  ],
+  "corrective_reviews": [
+    {
+      "id": "8B-CR-01",
+      "reviewed_head": "96f640dc20f114ad8d1de2c61bb33d9b7bf6ed85",
+      "reviewed_run": "39446672241",
+      "groups": [
+        {
+          "id": "R1",
+          "finding": "The scope renderer returned not_shown, the exact number of grants a viewer could not open, on task panels, previews, and profile views.",
+          "correction": "Hidden scope and context items are omitted completely ({ items } only); no count, flag, or placeholder; non-configurers see profile readiness as agent_not_ready.",
+          "evidence": [
+            {
+              "file": "packages/work/src/agents/service.ts",
+              "contains": "return { items: out };"
+            },
+            {
+              "file": "packages/work/test/integration/agents-review01.test.ts",
+              "contains": "'AT-634 "
+            },
+            {
+              "file": "packages/work/test/integration/agents-review01.test.ts",
+              "contains": "'AT-635 "
+            },
+            {
+              "file": "apps/api/test/integration/agents-api.test.ts",
+              "contains": "'AT-640 "
+            },
+            {
+              "file": "apps/web/test/agents.test.tsx",
+              "contains": "review 01: no hidden count"
+            }
+          ],
+          "old_code": "fails on 96f640d: the reader's renderings of otherwise identical assignments differed (\"not_shown\":0 against \"not_shown\":1) (AT-634); over HTTP the share-only reader's payloads differed (AT-640)."
+        },
+        {
+          "id": "R2",
+          "finding": "Assignment readiness never re-decided the original assigner's agent.assign or the task lifecycle, so a downgraded but still-reading assigner left an assignment assigned.",
+          "correction": "One eligibility rule (#requireAssignable, #assignerEligibility) decides preview, save, edit, readiness, and the 8C handoff (agentAssignmentEligibility); the live ceiling and tools are separate from the stored ceiling.",
+          "evidence": [
+            {
+              "file": "packages/work/src/agents/service.ts",
+              "contains": "async #assignerEligibility("
+            },
+            {
+              "file": "packages/work/src/agents/service.ts",
+              "contains": "protected async agentAssignmentEligibility("
+            },
+            {
+              "file": "packages/work/test/integration/agents-review01.test.ts",
+              "contains": "'AT-636 "
+            },
+            {
+              "file": "packages/work/test/integration/agents-review01.test.ts",
+              "contains": "'AT-637 "
+            },
+            {
+              "file": "packages/work/test/integration/agents-review01.test.ts",
+              "contains": "'AT-638 "
+            },
+            {
+              "file": "packages/work/test/integration/agents-review01.test.ts",
+              "contains": "'AT-639 "
+            },
+            {
+              "file": "apps/api/test/integration/agents-api.test.ts",
+              "contains": "'AT-641 "
+            },
+            {
+              "file": "e2e/agents.spec.ts",
+              "contains": "'AT-642 "
+            }
+          ],
+          "old_code": "fails on 96f640d: after the downgrade the owner still saw assigned (AT-636); after the policy was turned off, assigned (AT-637); an archived task's assignment stayed assigned (AT-638); no live ceiling existed (effective_scope undefined, AT-639); over HTTP the guest saw model_unconfigured but no assigner_authority (AT-641); the task panel still showed Assigned (AT-642)."
+        }
+      ]
+    }
   ]
 }

@@ -1637,6 +1637,25 @@
         "I-01",
         "I-13"
       ]
+    },
+    {
+      "id": "T-162",
+      "category": "inference",
+      "description": "A task reader learns how many brands, projects, records, or integrations an assignment or profile holds that they cannot open, from a hidden count, total, flag, or placeholder in the scope view, preview, or panel, and so tells otherwise identical assignments apart.",
+      "mitigated_by": [
+        "I-07",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-163",
+      "category": "revocation",
+      "description": "An assigner who lost agent.assign on the task (a role or grant downgrade that keeps read access, or a workspace policy change), or a task that became archived or trashed, leaves a stored assignment shown as assigned and handed to execution as eligible, because readiness checks readability instead of current assignment authority.",
+      "mitigated_by": [
+        "I-11",
+        "I-12",
+        "I-14"
+      ]
     }
   ],
   "tests": [
@@ -12473,6 +12492,152 @@
       "silent_surfaces": [
         "error_message",
         "ui_list"
+      ]
+    },
+    {
+      "id": "AT-634",
+      "threats": [
+        "T-162"
+      ],
+      "principal": "read_only",
+      "setup": "Assignments differing only in zero, one, and three hidden scope items in another brand",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-635",
+      "threats": [
+        "T-162"
+      ],
+      "principal": "owner",
+      "setup": "A broad configurer reads every selected item; a reader revoked after a first read",
+      "scope": "revocation, trash, and departure",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-636",
+      "threats": [
+        "T-163"
+      ],
+      "principal": "member",
+      "setup": "Assigner downgraded from edit to view on the brand, still reading the task",
+      "scope": "assigner lost access mid-run",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-637",
+      "threats": [
+        "T-163"
+      ],
+      "principal": "limited_member",
+      "setup": "The workspace policy that let limited members assign agents is turned off",
+      "scope": "assigner lost access mid-run",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-638",
+      "threats": [
+        "T-163"
+      ],
+      "principal": "owner",
+      "setup": "Assigned task archived, then trashed, then restored",
+      "scope": "trashed record, current access revoked",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-639",
+      "threats": [
+        "T-163",
+        "T-162"
+      ],
+      "principal": "owner",
+      "setup": "A context item the owner can read but the assigner no longer can",
+      "scope": "assigner lost access mid-run",
+      "action": "agent.assign",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-640",
+      "threats": [
+        "T-162"
+      ],
+      "principal": "guest",
+      "setup": "HTTP: a share-only reader compares assignments with and without a hidden project",
+      "scope": "shared task's context",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "api",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-641",
+      "threats": [
+        "T-163"
+      ],
+      "principal": "guest",
+      "setup": "HTTP: every reader sees the downgraded assigner's assignment blocked; the assigner cannot assign",
+      "scope": "assigner lost access mid-run",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-642",
+      "threats": [
+        "T-163",
+        "T-162"
+      ],
+      "principal": "member",
+      "setup": "Browser: the task panel after the assigner is downgraded to view",
+      "scope": "assigner lost access mid-run",
+      "action": "agent.assign",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ui_record"
       ]
     }
   ]

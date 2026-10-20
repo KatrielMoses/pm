@@ -34,7 +34,11 @@ Phase 8B configures agents and assigns them to tasks. **Nothing runs an agent ye
 ## Assignments
 
 - On a task, a person with `agent.assign` (edit level; never through a record share) previews, assigns, edits, and withdraws agents. Agents are listed separately from people and never change task status.
-- The stored ceiling is the pinned revision's grants ∩ the assigner's access ∩ the explicit scope ∩ the owner's authority. It only narrows: later grants never widen it; lost access shows the assignment as blocked with its reasons (`scope_narrowed`, `scope_lost`, `owner_authority`, `assigner_unavailable`, readiness reasons).
+- The stored ceiling (shown as "Scope as assigned") is history: the pinned revision's grants ∩ the assigner's access ∩ the explicit scope ∩ the owner's authority when it was saved. The live ceiling ("Scope it can use now", `effective_scope`) is decided on every read: the stored ceiling ∩ the pinned and current profile grants ∩ what the assigner and owner reach now. Later grants never widen either.
+- One eligibility rule decides preview, save, edit, readiness, and the 8C handoff: the task is active and the original assigner holds `agent.assign` on it now (loaded as that assigner; record shares never count). Readable is not assignable: an assigner downgraded to view, a policy change (`limited_members_agents`), or an archived or trashed task blocks the assignment.
+- Reasons: `assigner_authority`, `assigner_unavailable`, `task_ineligible`, `scope_lost` (the task is outside the live ceiling). Configurers also see the profile's readiness reasons; everyone else sees `agent_not_ready`. Every block is derived on read, not a stored suspension.
+- Scope and context views list only items the viewer can open; hidden items are omitted, never counted. Readable context the assigner or owner can no longer reach is marked `usable: false` (history only).
+- **8C handoff.** `agentAssignmentEligibility(tx, task, profile)` returns `{ eligible, reasons, ceiling, tools }`; 8C must call it immediately before issuing a run credential or dispatching and use only `ceiling` and `tools`.
 - A personal token may assign only with `agents:execute`; every `/agents` configuration route refuses tokens.
 
 ## Limits
