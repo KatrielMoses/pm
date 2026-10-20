@@ -1,3 +1,4 @@
+import { automationRunsMetric } from './metrics-8a.ts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { TenancyError, type Principal } from '@pm/tenancy';
 import type { Issues } from '@pm/tenancy';
@@ -180,7 +181,15 @@ export interface MetricProvider {
   description: string;
   unit: MetricValue['unit'];
   category:
-    'work' | 'projects' | 'time' | 'capacity' | 'planning' | 'deliverables' | 'goals' | 'ai';
+    | 'work'
+    | 'projects'
+    | 'time'
+    | 'capacity'
+    | 'planning'
+    | 'deliverables'
+    | 'goals'
+    | 'ai'
+    | 'automation';
   source: { kind: string; label: string };
   /** Guests and share-only readers may place and read only record-level metrics (ADR-0031 D8). */
   guestSafe: boolean;
@@ -1166,6 +1175,8 @@ export const PROVIDERS: readonly MetricProvider[] = [
   ...METRICS_5C,
   // 7A: AI cost and tokens from the usage ledger, for people who may view usage.
   aiUsageMetric,
+  // 8A: automation run outcomes and success rate, for people who may view automation health.
+  automationRunsMetric,
 ];
 
 /** Requirements whose sources are defined by a later phase: listed, never placed (honest absence). */
@@ -1177,11 +1188,11 @@ export const DEFERRED_METRICS: ReadonlyArray<{
   reason: string;
 }> = [
   {
-    key: 'automation.rates',
-    label: 'Automation and agent success rates',
+    key: 'agent.rates',
+    label: 'Agent success rates',
     requirement: 'RPT-013',
-    owner: '8A/8C',
-    reason: 'Automations and agents do not exist yet.',
+    owner: '8C',
+    reason: 'Agents do not exist yet (automation outcomes are reported by automation.rates).',
   },
   {
     key: 'quality.release',

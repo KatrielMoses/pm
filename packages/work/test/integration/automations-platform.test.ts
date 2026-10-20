@@ -205,6 +205,28 @@ describe('automations (8A): AI drafts, future sources, alerts, lifecycle, previe
     expect(health.automations.find((x) => x.id === a.id)).toMatchObject({ failures_in_a_row: 3, runs_30d: { failed: 3 } });
   });
 
+  it('AT-577 automation outcomes reach the 5D metric port: equal for equal access, hidden without health access', async () => {
+    const admin = await join(env, db, s.owner, s.ws, { kind: 'member', role: 'administrator' });
+    const member = await join(env, db, s.owner, s.ws, { kind: 'member', role: 'member' });
+    const figure = async (who: Caller, q: Record<string, unknown> = {}) =>
+      ((await env.svc.adhocWidget(who, s.ws, { metric: 'automation.rates', ...q })) as { outcome: Record<string, any> }).outcome;
+    const mine = await figure(s.owner);
+    const theirs = await figure(admin);
+    // Two people with the same access see exactly the same figure (rendered for each viewer; only
+    // the evaluation instant differs).
+    const timeless = (o: Record<string, any>) => ({ ...o, freshness: { ...o.freshness, as_of: null } });
+    expect(timeless(theirs)).toEqual(timeless(mine));
+    const rows = Object.fromEntries((mine.rows as Array<{ cells: { outcome: string; runs: number } }>).map((r) => [r.cells.outcome, r.cells.runs]));
+    expect(rows['Failed']).toBeGreaterThanOrEqual(3);
+    const ended = (await db.admin(`SELECT status, count(*)::int AS n FROM automation.automation_run WHERE ended_at IS NOT NULL GROUP BY status`)).rows;
+    const by = Object.fromEntries(ended.map((r) => [r.status, r.n]));
+    const counted = ['succeeded', 'partial', 'failed', 'policy_rejected', 'cancelled'].reduce((t, k) => t + (by[k] ?? 0), 0);
+    expect(mine.value).toBe(Math.round(((by.succeeded ?? 0) * 1000) / counted) / 10);
+    // A member without automation health access gets no figure at all (no counts, no hints).
+    const none = await figure(member);
+    expect({ value: none.value, rows: none.rows, incomplete: none.incomplete }).toEqual({ value: null, rows: [], incomplete: ['no_measurement'] });
+  });
+
   it('AT-574 lifecycle: archive stops runs, restore stays disabled and never replays, purge removes history', async () => {
     await disableAll();
     const a = await s.automate('Lifecycle', updateOnCreate());
@@ -311,6 +333,5 @@ describe('automations (8A): AI drafts, future sources, alerts, lifecycle, previe
     await db.admin(`UPDATE automation.trigger_schedule SET next_due_at = $2 WHERE automation_id = $1`, [did, at('2026-10-21T03:30:00Z')]);
     expect(await svc.runTriggerSweep(s.wsId, at('2026-10-21T03:31:00Z'))).toBe(0);
     expect((await runsOf(db, due.id)).map((r) => (r.trigger_key as string).replace(/date:[^:]+:/, 'date:*:'))).toEqual(['date:*:2026-10-21']);
-    void join;
   });
 });
