@@ -428,6 +428,23 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Automation run',
     visible: member,
   },
+  // 8B: agent profiles (list with templates, and the profile editor with its connector).
+  {
+    id: 'agents',
+    pattern: '/workspaces/:ws/agents',
+    shell: 'workspace',
+    section: 'Agents',
+    extraCommand: 'go.agents',
+    nav: { placement: 'workspace', label: 'Agents', short: 'Agents', icon: '◇', order: 7 },
+    visible: member,
+  },
+  {
+    id: 'agent',
+    pattern: '/workspaces/:ws/agents/:agt',
+    shell: 'workspace',
+    section: 'Agent',
+    visible: member,
+  },
   {
     id: 'workflows',
     pattern: '/workspaces/:ws/settings/workflows',
