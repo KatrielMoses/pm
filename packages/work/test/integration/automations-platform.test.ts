@@ -18,8 +18,6 @@ import { automationWorker, runsOf, settle, stepsOf, wakeDelays } from './automat
 import { enableAi, fixtureAi } from './ai-support.ts';
 
 const v = (n: number) => mutation({ ifMatch: `"${n}"` });
-const issueOf = (c: string) =>
-  expect.objectContaining({ issues: expect.arrayContaining([expect.objectContaining({ code: c })]) });
 const updateOnCreate = (fields: Record<string, unknown> = { priority: 'high' }) => ({
   schema_version: 1,
   trigger: { kind: 'record.created', record: 'task' },

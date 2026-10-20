@@ -60,6 +60,21 @@ const DashboardPage = lazy(() =>
 const ReportPage = lazy(() =>
   import('./pages/insight-pages.tsx').then((m) => ({ default: m.ReportPage })),
 );
+// 8A automation pages load on first use as well.
+const AutomationsPage = lazy(() =>
+  import('./automations/pages.tsx').then((m) => ({ default: m.AutomationsPage })),
+);
+const AutomationPage = lazy(() =>
+  import('./automations/pages.tsx').then((m) => ({ default: m.AutomationPage })),
+);
+const AutomationRunPage = lazy(() =>
+  import('./automations/pages.tsx').then((m) => ({ default: m.AutomationRunPage })),
+);
+const loadingAutomations = (
+  <p className="loading" role="status">
+    Loading…
+  </p>
+);
 const loadingGoals = (
   <p className="loading" role="status">
     Loading…
@@ -211,6 +226,21 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   ai_briefing: (p) => <BriefingPage key={p.brf} ws={p.ws!} id={p.brf!} />,
   ai_briefing_settings: (p) => <BriefingSettingsPage key={p.ws} ws={p.ws!} />,
   integrations: (p) => <IntegrationsPage ws={p.ws!} />,
+  automations: (p) => (
+    <Suspense fallback={loadingAutomations}>
+      <AutomationsPage key={p.ws} ws={p.ws!} />
+    </Suspense>
+  ),
+  automation: (p) => (
+    <Suspense fallback={loadingAutomations}>
+      <AutomationPage key={p.aut} ws={p.ws!} id={p.aut!} />
+    </Suspense>
+  ),
+  automation_run: (p) => (
+    <Suspense fallback={loadingAutomations}>
+      <AutomationRunPage key={p.run} ws={p.ws!} aut={p.aut!} run={p.run!} />
+    </Suspense>
+  ),
   access_settings: (p) => <AccessSettingsPage ws={p.ws!} />,
   workspace_root: (p) => <WorkspaceRootPage key={p.ws} ws={p.ws!} />,
   preferences: () => <PreferencesPage />,

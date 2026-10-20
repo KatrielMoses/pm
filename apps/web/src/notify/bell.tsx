@@ -71,7 +71,9 @@ export const recordPath = (ws: string, r: NonNullable<NotificationItem['record']
     ? routeHref('project', { ws, prj: r.id })
     : r.type === 'document'
       ? routeHref('document', { ws, doc: r.id })
-      : routeHref('task', { ws, tsk: r.id });
+      : r.type === 'automation'
+        ? routeHref('automation', { ws, aut: r.id })
+        : routeHref('task', { ws, tsk: r.id });
 
 /** Opening a notification's record marks it read (idempotent; a failure changes nothing). */
 export function markReadOnOpen(ws: string, n: NotificationItem): void {

@@ -65,7 +65,6 @@ import {
   INTEGRATION_SOURCE_KINDS,
   TRIGGERS,
   triggerEvents,
-  type ActionKey,
   type ActionNode,
   type Compiled,
   type Condition,
@@ -1909,7 +1908,7 @@ export class AutomationService extends AiGatewayService {
   async #action(tx: WorkspaceTransaction, caller: AutomationCaller, p: Principal, run: RunRow, revision: RevisionRow, node: ActionNode): Promise<Advance> {
     const def = ACTION_MATRIX[node.action];
     if (def.status !== 'supported') return this.#failStep(tx, run, node, { cls: 'unavailable', code: 'action_unavailable' }, []);
-    let targets: Array<{ id: string; publicId: string; kind: RecordKind; projectId: string | null }> = [];
+    let targets: Array<{ id: string; publicId: string; kind: RecordKind; projectId: string | null }>;
     try {
       targets = await this.#targets(tx, p, run, revision, node);
     } catch (err) {
@@ -1920,7 +1919,7 @@ export class AutomationService extends AiGatewayService {
     const logicalKey = this.#logicalKey(run, node, targets.map((t) => t.id));
     if (node.action === 'webhook.send') return this.#prepareWebhook(tx, p, run, revision, node, targets, logicalKey);
     await sql`SAVEPOINT automation_action`.execute(tx.db);
-    let output: Record<string, unknown> = {};
+    let output: Record<string, unknown>;
     try {
       output = await this.#perform(tx, caller, p, run, revision, node, targets, logicalKey);
       await sql`RELEASE SAVEPOINT automation_action`.execute(tx.db);
@@ -2735,6 +2734,24 @@ export class AutomationService extends AiGatewayService {
     const status = this.#displayStatus(row.status, row.execution_state);
     const configure = (await this.#decideScope(tx, p, 'automations.configure', a.brand_id)).allowed;
     const uncertain = row.status === 'waiting' && row.reason === 'reconciliation_required';
+    // P8-W0: what may have left, with the version a reconciliation must name (owners and
+    // administrators decide it under step-up through the existing operations command).
+    const effects = uncertain
+      ? (
+          await tx.db
+            .selectFrom('exec.external_effect')
+            .select(['effect_key', 'state', 'version', 'uncertainty_reason'])
+            .where('operation_id', '=', row.current_operation_id)
+            .where('state', '=', 'unknown')
+            .execute()
+        ).map((e) => ({
+          key: e.effect_key,
+          state: e.state,
+          version: Number(e.version),
+          reason: e.uncertainty_reason,
+          destination: 'automation webhook',
+        }))
+      : [];
     return {
       id: row.op_public_id,
       type: 'automation_run' as const,
@@ -2754,8 +2771,10 @@ export class AutomationService extends AiGatewayService {
       duration_ms: row.ended_at && row.started_at ? new Date(row.ended_at).getTime() - new Date(row.started_at).getTime() : null,
       explanation: this.#explain(status, row.reason),
       reconciliation_required: uncertain,
+      effects,
       steps: stepViews,
       capabilities: {
+        reconcile: uncertain && decideWorkspace(p, 'operation.reconcile_effect').allowed,
         retry: configure && (row.status === 'failed' || row.status === 'policy_rejected') && row.retry_count < this.ws.automationRetriesMax,
         cancel: configure && OPEN.includes(row.status as AutomationRunStatus) && !uncertain,
       },
