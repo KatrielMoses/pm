@@ -8,6 +8,7 @@ import {
   contextFromRow,
   createOperation,
   defineEffectDestination,
+  EffectNotSentError,
   enqueueJob,
   isTerminalState,
   JobError,
@@ -230,14 +231,16 @@ type Advance =
   | { kind: 'done'; result: JobResult }
   | { kind: 'fail'; errorClass: 'authorization' | 'policy' | 'deterministic'; code: string }
   | { kind: 'cancel' }
-  | {
-      kind: 'effect';
-      node: string;
-      logicalKey: string;
-      subscriptionId: string;
-      fingerprint: string;
-      envelope: Record<string, unknown>;
-    };
+  /**
+   * An external effect to perform: references only (review 01 R2). This value is a step
+   * checkpoint; the payload is rebuilt in memory, under fresh authorization, just before sending.
+   */
+  | { kind: 'effect'; node: string; logicalKey: string };
+
+/** The webhook payload as decided now (in memory only; never stored). */
+type WebhookPlan =
+  | { refused: StepFailure; authority?: boolean }
+  | { envelope: Record<string, unknown>; subscriptionId: string; fingerprint: string };
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 const monthStart = (d: Date) =>
@@ -346,6 +349,11 @@ export class AutomationService extends AiGatewayService {
    * A visible automation for a person: configurers and health viewers of its scope. Anything
    * else (another tenant, a guest, an unreadable brand) is the same `not_found`.
    */
+  /** Session-only commands refuse delegated callers (tokens, OAuth) before anything else. */
+  #sessionOnly(caller: Caller) {
+    if (caller.delegation) throw new TenancyError('forbidden');
+  }
+
   async #visible(
     tx: WorkspaceTransaction,
     p: Principal,
@@ -717,7 +725,8 @@ export class AutomationService extends AiGatewayService {
           data: await this.#automationView(tx, p, row),
         };
       },
-      async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
+      async (tx, p, ref) =>
+        this.#automationView(tx, p, await this.#visible(tx, p, ref.id, { need: 'configure' })),
     );
   }
 
@@ -886,7 +895,8 @@ export class AutomationService extends AiGatewayService {
           data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!),
         };
       },
-      async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
+      async (tx, p, ref) =>
+        this.#automationView(tx, p, await this.#visible(tx, p, ref.id, { need: 'configure' })),
     );
   }
 
@@ -1052,6 +1062,9 @@ export class AutomationService extends AiGatewayService {
     req: Mutation,
   ) {
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    // Session only, before any idempotency work: a delegated caller never activates and never
+    // replays someone's completed activation (review 01 R3).
+    this.#sessionOnly(caller);
     return this.mutate(
       caller,
       'automation.activate',
@@ -1263,7 +1276,8 @@ export class AutomationService extends AiGatewayService {
           data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!),
         };
       },
-      async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
+      async (tx, p, ref) =>
+        this.#automationView(tx, p, await this.#visible(tx, p, ref.id, { need: 'configure' })),
     );
   }
 
@@ -1341,7 +1355,8 @@ export class AutomationService extends AiGatewayService {
           data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!),
         };
       },
-      async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
+      async (tx, p, ref) =>
+        this.#automationView(tx, p, await this.#visible(tx, p, ref.id, { need: 'configure' })),
     );
   }
 
@@ -1506,7 +1521,8 @@ export class AutomationService extends AiGatewayService {
           data: await this.#automationView(tx, p, (await this.#rows(tx, { id }))!),
         };
       },
-      async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
+      async (tx, p, ref) =>
+        this.#automationView(tx, p, await this.#visible(tx, p, ref.id, { need: 'configure' })),
     );
   }
 
@@ -1526,6 +1542,7 @@ export class AutomationService extends AiGatewayService {
       body && typeof body === 'object' ? (body as Record<string, unknown>).owner : undefined;
     if (!isPublic(ownerRef, 'mem'))
       throw invalid(issue('/owner', 'invalid_reference', 'Choose a person.'));
+    this.#sessionOnly(caller);
     return this.mutate(
       caller,
       'automation.reassign',
@@ -1590,7 +1607,8 @@ export class AutomationService extends AiGatewayService {
           data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!),
         };
       },
-      async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
+      async (tx, p, ref) =>
+        this.#automationView(tx, p, await this.#visible(tx, p, ref.id, { need: 'configure' })),
     );
   }
 
@@ -1653,13 +1671,15 @@ export class AutomationService extends AiGatewayService {
           },
         };
       },
-      async (tx, _p, ref) => {
-        const r = await tx.db
-          .selectFrom('core.record')
-          .select(['public_id', 'lifecycle_state'])
-          .where('public_id', '=', ref.id)
-          .executeTakeFirstOrThrow();
-        return { id: r.public_id, type: 'automation' as const, lifecycle_state: r.lifecycle_state };
+      // A completed key renders through the caller's current authority (review 01 R3): the
+      // configurer of its brand sees its lifecycle state, trashed included; a purged, foreign,
+      // or no longer configurable automation is the same opaque answer.
+      async (tx, p, ref) => {
+        const a = await this.#rows(tx, { publicId: ref.id });
+        if (!a || a.lifecycle_state === 'purged') throw new TenancyError('not_found');
+        const configure = await this.#decideScope(tx, p, 'automations.configure', a.brand_id);
+        if (!configure.allowed) throw new TenancyError('not_found');
+        return { id: a.public_id, type: 'automation' as const, lifecycle_state: a.lifecycle_state };
       },
     );
   }
@@ -2271,14 +2291,21 @@ export class AutomationService extends AiGatewayService {
       if (a.kind === 'fail') throw new JobError(a.errorClass, a.code);
       if (a.kind === 'cancel') throw new CancelRequestedError();
       // External effect: claimed and performed outside any transaction, outcome recorded after.
+      // The claim is not authority: immediately before the request leaves, the run, its owner's
+      // authority, the target, the standing approval, and the destination are decided again and
+      // the payload is built in memory (review 01 R2). A refusal there sends nothing.
+      const box: { plan?: WebhookPlan } = {};
       try {
         await ctx.effect(a.logicalKey, AUTOMATION_WEBHOOK_DESTINATION, async () => {
+          const plan = await this.#dispatchPlan(ctx, runId, a.node, a.logicalKey);
+          box.plan = plan;
+          if ('refused' in plan) throw new EffectNotSentError('precondition_failed');
           await this.sendAutomationWebhook({
             workspaceId: ctx.job.workspaceId!,
-            subscriptionId: a.subscriptionId,
-            fingerprint: a.fingerprint,
+            subscriptionId: plan.subscriptionId,
+            fingerprint: plan.fingerprint,
             effectKey: a.logicalKey,
-            envelope: a.envelope,
+            envelope: plan.envelope,
           });
           return {};
         });
@@ -2304,6 +2331,31 @@ export class AutomationService extends AiGatewayService {
               .where('id', '=', runId)
               .execute();
           });
+        } else if (err instanceof JobError && err.code === 'effect_not_sent') {
+          // Proven not sent (refused locally before any request): a typed step refusal.
+          const plan = box.plan && 'refused' in box.plan ? box.plan : null;
+          const failure: StepFailure = plan?.refused ?? {
+            cls: 'policy_rejected',
+            code: 'approval_invalid',
+          };
+          const out = (await ctx.step(`x${i}`, async (tx) => ({
+            advance: await this.#refuseDispatch(
+              tx as WorkspaceTransaction,
+              runId,
+              a.node,
+              failure,
+              plan?.authority === true,
+            ),
+          }))) as { advance: Advance };
+          const r = out.advance;
+          if (r.kind === 'continue') continue;
+          if (r.kind === 'done')
+            return r.result.state === 'waiting'
+              ? { ...r.result, resumeAt: new Date(r.result.resumeAt) }
+              : r.result;
+          if (r.kind === 'fail') throw new JobError(r.errorClass, r.code);
+          if (r.kind === 'cancel') throw new CancelRequestedError();
+          throw new JobError('deterministic', 'automation_dispatch_invalid');
         }
         throw err;
       }
@@ -2837,6 +2889,16 @@ export class AutomationService extends AiGatewayService {
       targets: targets.map((id) => ({ id })),
     });
     await this.#countStep(tx, run);
+    return this.#afterFailure(tx, run, node, f);
+  }
+
+  /** A failed step's next move: its declared fallback for this typed failure, or the run ends. */
+  async #afterFailure(
+    tx: WorkspaceTransaction,
+    run: RunRow,
+    node: ActionNode,
+    f: StepFailure,
+  ): Promise<Advance> {
     if (
       node.fallback &&
       f.cls !== 'error' &&
@@ -3363,6 +3425,55 @@ export class AutomationService extends AiGatewayService {
       .where('node_id', '=', node.id)
       .where('state', '=', 'dispatching')
       .executeTakeFirst();
+    const t = targets[0];
+    if (!t)
+      return this.#failStep(
+        tx,
+        run,
+        node,
+        { cls: 'validation_failed', code: 'no_trigger_record' },
+        [],
+      );
+    // Decided here so a refused step never claims; decided again before the request leaves.
+    const plan = await this.#webhookPlan(tx, p, run, revision, node, t);
+    if ('refused' in plan)
+      return this.#failStep(
+        tx,
+        run,
+        node,
+        plan.refused,
+        targets.map((x) => x.publicId),
+      );
+    if (!existing)
+      await this.#recordStep(tx, run, {
+        node: node.id,
+        kind: 'action',
+        action: node.action,
+        state: 'dispatching',
+        targets: [{ id: t.publicId, type: t.kind }],
+        output: {
+          webhook: node.params.subscription as string,
+          fields: [...(node.params.fields as string[])].sort(),
+        },
+        logicalKey,
+      });
+    return { kind: 'effect', node: node.id, logicalKey: existing?.logical_key ?? logicalKey };
+  }
+
+  /**
+   * A webhook step's authorization and payload, decided now through the run principal: the
+   * exact active standing approval (revision, step, destination fingerprint, field set, scope),
+   * the destination's state, the owner's `webhooks.manage`, and the target's current facts.
+   * The payload exists in memory only; it is never returned to a checkpoint.
+   */
+  async #webhookPlan(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    run: RunRow,
+    revision: RevisionRow,
+    node: ActionNode,
+    t: { id: string; publicId: string; kind: RecordKind },
+  ): Promise<WebhookPlan> {
     const approval = await tx.db
       .selectFrom('automation.standing_approval')
       .selectAll()
@@ -3389,13 +3500,7 @@ export class AutomationService extends AiGatewayService {
       dest.state !== 'active' ||
       dest.lifecycleState !== 'active'
     )
-      return this.#failStep(
-        tx,
-        run,
-        node,
-        { cls: 'policy_rejected', code: 'approval_invalid' },
-        targets.map((t) => t.publicId),
-      );
+      return { refused: { cls: 'policy_rejected', code: 'approval_invalid' } };
     const manage =
       dest.brandId === null
         ? decideWorkspace(p, 'webhooks.manage')
@@ -3408,26 +3513,9 @@ export class AutomationService extends AiGatewayService {
               lifecycleState: 'trashed',
             },
           );
-    if (!manage.allowed)
-      return this.#failStep(
-        tx,
-        run,
-        node,
-        { cls: 'policy_rejected', code: 'not_permitted' },
-        targets.map((t) => t.publicId),
-      );
-    const t = targets[0];
-    if (!t)
-      return this.#failStep(
-        tx,
-        run,
-        node,
-        { cls: 'validation_failed', code: 'no_trigger_record' },
-        [],
-      );
+    if (!manage.allowed) return { refused: { cls: 'policy_rejected', code: 'not_permitted' } };
     const facts = await this.#facts(tx, p, revision, t.id, null);
-    if (!facts)
-      return this.#failStep(tx, run, node, { cls: 'policy_rejected', code: 'not_permitted' }, []);
+    if (!facts) return { refused: { cls: 'policy_rejected', code: 'not_permitted' } };
     const values: Record<string, string | null> = {};
     for (const f of fields)
       values[f] = ((facts as unknown as Record<string, unknown>)[f] as string | null) ?? null;
@@ -3435,35 +3523,145 @@ export class AutomationService extends AiGatewayService {
       .selectFrom('tenancy.workspace')
       .select('public_id')
       .executeTakeFirstOrThrow();
-    const envelope = {
-      type: 'automation.action',
-      api_version: 'v1',
-      created_at: new Date().toISOString(),
-      workspace: ws.public_id,
-      data: {
-        object: { id: t.publicId, type: t.kind },
-        fields: values,
-        automation: (await this.#rows(tx, { id: run.automation_id }))!.public_id,
-      },
-    };
-    if (!existing)
-      await this.#recordStep(tx, run, {
-        node: node.id,
-        kind: 'action',
-        action: node.action,
-        state: 'dispatching',
-        targets: [{ id: t.publicId, type: t.kind }],
-        output: { webhook: pub, fields },
-        logicalKey,
-      });
     return {
-      kind: 'effect',
-      node: node.id,
-      logicalKey: existing?.logical_key ?? logicalKey,
       subscriptionId: dest.id,
       fingerprint: dest.fingerprint,
-      envelope,
+      envelope: {
+        type: 'automation.action',
+        api_version: 'v1',
+        created_at: new Date().toISOString(),
+        workspace: ws.public_id,
+        data: {
+          object: { id: t.publicId, type: t.kind },
+          fields: values,
+          automation: (await this.#rows(tx, { id: run.automation_id }))!.public_id,
+        },
+      },
     };
+  }
+
+  /**
+   * The last decision before a webhook request leaves (review 01 R2), on every path that reaches
+   * it: first execution, a restarted worker reusing the checkpoint, and a resumption after
+   * reconciliation. In one short transaction, with the run row locked against concurrent
+   * disable and cancel: the run must still be open and its automation on; the in-flight step
+   * must carry this logical key and target (never rebound); the pinned owner's current
+   * authority, narrowed to the snapshot, must still reach the target; and the approval and
+   * destination must still match. Nothing is sent from here; I/O happens after it commits.
+   */
+  async #dispatchPlan(
+    ctx: JobHandlerContext,
+    runId: string,
+    nodeId: string,
+    logicalKey: string,
+  ): Promise<WebhookPlan> {
+    return this.d.tenant.withWorkspace(
+      ctx.job.workspaceId!,
+      { module: 'automation' },
+      async (tx) => {
+        const refuse = (code: string): WebhookPlan => ({
+          refused: { cls: 'policy_rejected', code },
+        });
+        const run = await this.#runRow(tx, runId, true);
+        if (!run || TERMINAL_RUN.has(run.status)) return refuse('run_closed');
+        const a = (await this.#rows(tx, { id: run.automation_id }))!;
+        if (!a.enabled || a.lifecycle_state !== 'active' || a.suspended_reason)
+          return refuse('automation_disabled');
+        const inflight = await tx.db
+          .selectFrom('automation.automation_step_run')
+          .select(['targets', 'logical_key'])
+          .where('run_id', '=', run.id)
+          .where('node_id', '=', nodeId)
+          .where('state', 'in', ['dispatching', 'unknown'])
+          .orderBy('attempt', 'desc')
+          .executeTakeFirst();
+        if (!inflight || inflight.logical_key !== logicalKey) return refuse('binding_changed');
+        const revision = await this.#revision(tx, run.revision_id);
+        const node = revision.definition.steps.find((s) => s.id === nodeId);
+        if (!node || node.type !== 'action' || node.action !== 'webhook.send')
+          return refuse('binding_changed');
+        const authority = await this.#runPrincipal(tx, run, revision);
+        if ('refused' in authority)
+          return { refused: { cls: 'policy_rejected', code: authority.refused }, authority: true };
+        let targets: Array<{ id: string; publicId: string; kind: RecordKind }>;
+        try {
+          targets = await this.#targets(tx, authority.p, run, revision, node);
+        } catch (err) {
+          const f = this.#classify(err);
+          if (!f) throw err;
+          return { refused: f };
+        }
+        const t = targets[0];
+        const recorded = (inflight.targets as Array<{ id: string }> | null)?.[0]?.id;
+        if (!t) return refuse('not_permitted');
+        if (
+          t.publicId !== recorded ||
+          this.#logicalKey(
+            run,
+            node,
+            targets.map((x) => x.id),
+          ) !== logicalKey
+        )
+          return refuse('binding_changed');
+        return this.#webhookPlan(tx, authority.p, run, revision, node, t);
+      },
+    );
+  }
+
+  /**
+   * Records a webhook step refused before any request left (the effect is proven not sent): the
+   * in-flight attempt becomes refused, or, after an earlier unknown attempt, a new refused
+   * attempt is added beside it (that attempt's liability stays recorded). Lost owner authority
+   * suspends the automation and ends the run; any other refusal follows the step's fallback.
+   */
+  async #refuseDispatch(
+    tx: WorkspaceTransaction,
+    runId: string,
+    nodeId: string,
+    f: StepFailure,
+    authority: boolean,
+  ): Promise<Advance> {
+    const run = (await this.#runRow(tx, runId, true))!;
+    // Closed meanwhile (cancelled, disabled, or refused elsewhere): report what it is, never success.
+    if (run.status === 'cancelled') return { kind: 'cancel' };
+    if (run.status === 'failed' || run.status === 'policy_rejected')
+      return { kind: 'fail', errorClass: 'authorization', code: 'policy_rejected' };
+    if (TERMINAL_RUN.has(run.status)) return { kind: 'done', result: this.#resultOf(run) };
+    const revision = await this.#revision(tx, run.revision_id);
+    const node = revision.definition.steps.find((s) => s.id === nodeId) as ActionNode;
+    const state = f.cls === 'policy_rejected' ? 'refused' : 'failed';
+    const inflight = await tx.db
+      .selectFrom('automation.automation_step_run')
+      .select(['id', 'state', 'targets', 'logical_key'])
+      .where('run_id', '=', run.id)
+      .where('node_id', '=', nodeId)
+      .where('state', 'in', ['dispatching', 'unknown'])
+      .orderBy('attempt', 'desc')
+      .executeTakeFirst();
+    if (inflight?.state === 'dispatching')
+      await tx.db
+        .updateTable('automation.automation_step_run')
+        .set({ state, failure_class: f.cls, code: f.code, ended_at: new Date() })
+        .where('id', '=', inflight.id)
+        .execute();
+    else
+      await this.#recordStep(tx, run, {
+        node: nodeId,
+        kind: 'action',
+        action: node.action,
+        state,
+        failure: f,
+        targets: (inflight?.targets as unknown[] | null) ?? null,
+        logicalKey: inflight?.logical_key ?? null,
+      });
+    if (authority) {
+      const a = (await this.#rows(tx, { id: run.automation_id }))!;
+      await this.#stop(tx, a, 'suspended', f.code as 'owner_authority' | 'owner_departed');
+      await this.#terminalize(tx, run, 'policy_rejected', f.code);
+      return { kind: 'fail', errorClass: 'authorization', code: 'owner_authority' };
+    }
+    await this.#countStep(tx, run);
+    return this.#afterFailure(tx, run, node, f);
   }
 
   /**
@@ -3850,7 +4048,8 @@ export class AutomationService extends AiGatewayService {
           data: await this.#runView(tx, p, made.operationPublicId),
         };
       },
-      async (tx, p, ref) => this.#runView(tx, p, ref.id),
+      // A completed key renders with the authority its command needs now (review 01 R3).
+      async (tx, p, ref) => this.#runView(tx, p, ref.id, true, 'run'),
     );
   }
 
@@ -4247,7 +4446,13 @@ export class AutomationService extends AiGatewayService {
    * One run as a viewer may see it now: history is re-rendered through the viewer's current
    * access (records they cannot read are omitted, never named), with bounded codes.
    */
-  async #runView(tx: WorkspaceTransaction, p: Principal, opPublic: unknown, steps = true) {
+  async #runView(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    opPublic: unknown,
+    steps = true,
+    need: 'view' | 'configure' | 'run' = 'view',
+  ) {
     if (!isPublic(opPublic, 'op')) throw new TenancyError('not_found');
     const found = await this.#runByOp(tx, opPublic);
     if (!found) throw new TenancyError('not_found');
@@ -4267,7 +4472,7 @@ export class AutomationService extends AiGatewayService {
       .executeTakeFirst();
     if (!row) throw new TenancyError('not_found');
     const a = (await this.#rows(tx, { id: row.automation_id }))!;
-    await this.#visible(tx, p, a.public_id);
+    await this.#visible(tx, p, a.public_id, { need });
     const readable = async (publicId: string, type: string) => {
       try {
         if (type === 'task') await this.loadTask(tx, p, publicId);
@@ -4552,7 +4757,8 @@ export class AutomationService extends AiGatewayService {
           data: await this.#runView(tx, p, next.publicId),
         };
       },
-      async (tx, p, ref) => this.#runView(tx, p, ref.id),
+      // A completed key renders with the authority its command needs now (review 01 R3).
+      async (tx, p, ref) => this.#runView(tx, p, ref.id, true, 'configure'),
     );
   }
 
@@ -4614,7 +4820,8 @@ export class AutomationService extends AiGatewayService {
           data: await this.#runView(tx, p, op),
         };
       },
-      async (tx, p, ref) => this.#runView(tx, p, ref.id),
+      // A completed key renders with the authority its command needs now (review 01 R3).
+      async (tx, p, ref) => this.#runView(tx, p, ref.id, true, 'configure'),
     );
   }
 

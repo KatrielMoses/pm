@@ -5,6 +5,7 @@ import {
   idemKey,
   identityEnv,
   mailTo,
+  PASSWORD,
   registerAndVerify,
   signIn,
   tokenFrom,
@@ -247,5 +248,148 @@ describe('automations API (8A)', () => {
     );
     expect(refused.statusCode).toBe(422);
     expect((await post(owner, `/automations/${id}:explode`, {})).statusCode).toBe(404);
+  });
+
+  it('AT-594 R3 over HTTP: a completed lifecycle key replays only while the caller still configures the brand; a bearer token never replays a session-only activation or reassignment', async () => {
+    const memberId = (await owner.get(`${base()}/people`))
+      .json()
+      .data.find((x: { role: string; kind?: string }) => x.role === 'member').id as string;
+    const change = async (c: Record<string, unknown>) => {
+      const preview = await owner.post(`${base()}/access:preview`, { change: c });
+      expect(preview.statusCode, preview.body).toBe(200);
+      const body = { change: c, preview_token: preview.json().data.preview_token };
+      const headers = key();
+      let res = await owner.post(`${base()}/access:apply`, body, { headers });
+      if (res.statusCode === 403 && res.json().error.code === 'step_up_required') {
+        const sv = await owner.post(`/v1/auth/step-up/${res.json().error.step_up.id}:verify`, {
+          method: 'password',
+          proof: PASSWORD,
+        });
+        res = await owner.post(`${base()}/access:apply`, body, {
+          headers: { ...headers, 'step-up': sv.json().data.token },
+        });
+      }
+      expect(res.statusCode, res.body).toBe(200);
+    };
+    await change({ kind: 'brand_grant', brand, principal: memberId, level: 'manage' });
+    const made = await post(member, '/automations', {
+      name: 'Replayed archive',
+      scope: { kind: 'brand', brand },
+      template: 'label_new_tasks',
+      template_values: {},
+    });
+    expect(made.statusCode, made.body).toBe(201);
+    const id = made.json().data.id as string;
+    const facts = async () =>
+      (
+        await env.db.admin(
+          `SELECT r.lifecycle_state, a.version::int AS version,
+                  (SELECT count(*)::int FROM audit.audit_event e WHERE e.target_record_id = r.id) AS audits,
+                  (SELECT count(*)::int FROM exec.outbox_event o WHERE o.aggregate_id = r.id) AS events
+             FROM core.record r JOIN automation.automation a ON a.id = r.id WHERE r.public_id = $1`,
+          [id],
+        )
+      ).rows[0];
+    // The exact completed request: same key, same (empty) body.
+    const headers = key();
+    const first = await member.request('POST', `${base()}/automations/${id}:archive`, {
+      body: {},
+      headers,
+    });
+    expect(first.statusCode, first.body).toBe(200);
+    expect(first.json().data).toMatchObject({ id, lifecycle_state: 'archived' });
+    const after = await facts();
+    const again = await member.request('POST', `${base()}/automations/${id}:archive`, {
+      body: {},
+      headers,
+    });
+    expect(again.statusCode, again.body).toBe(200);
+    expect(again.headers['idempotent-replayed']).toBe('true');
+    expect(await facts()).toEqual(after);
+    // Brand access revoked, membership still active: the same key is the canonical opaque answer.
+    await change({ kind: 'brand_revoke', brand, principal: memberId });
+    const denied = await member.request('POST', `${base()}/automations/${id}:archive`, {
+      body: {},
+      headers,
+    });
+    expect(denied.statusCode, denied.body).toBe(404);
+    expect(denied.json().error.code).toBe('not_found');
+    expect(denied.headers['idempotent-replayed']).toBeUndefined();
+    for (const hidden of [id, 'archived', 'Replayed archive', 'label_new_tasks'])
+      expect(denied.body).not.toContain(hidden);
+    expect(await facts()).toEqual(after);
+    // A session activation, then the owner's bearer token replays the exact request: refused
+    // before any idempotency work, with nothing rendered.
+    const draft = await post(owner, '/automations', {
+      name: 'Session only',
+      scope: { kind: 'brand', brand },
+      template: 'label_new_tasks',
+      template_values: {},
+    });
+    const target = draft.json().data;
+    const definition = {
+      schema_version: 1,
+      trigger: { kind: 'record.created', record: 'task' },
+      conditions: null,
+      steps: [
+        {
+          id: 'up',
+          type: 'action',
+          action: 'task.update',
+          params: { fields: { priority: 'high' } },
+        },
+      ],
+    };
+    const edited = await patch(
+      owner,
+      `/automations/${target.id}`,
+      { definition },
+      {
+        'if-match': `"${target.version}"`,
+      },
+    );
+    expect(edited.statusCode, edited.body).toBe(200);
+    const actHeaders = { ...key(), 'if-match': `"${edited.json().data.version}"` };
+    const act = await owner.request('POST', `${base()}/automations/${target.id}:activate`, {
+      body: {},
+      headers: actHeaders,
+    });
+    expect(act.statusCode, act.body).toBe(200);
+    const tokenHeaders = key();
+    let tok = await owner.request('POST', `${base()}/api-tokens`, {
+      body: { name: 'Automations', kind: 'personal', scopes: ['records:read', 'records:write'] },
+      headers: tokenHeaders,
+    });
+    if (tok.statusCode === 403 && tok.json().error.code === 'step_up_required') {
+      const sv = await owner.post(`/v1/auth/step-up/${tok.json().error.step_up.id}:verify`, {
+        method: 'password',
+        proof: PASSWORD,
+      });
+      tok = await owner.request('POST', `${base()}/api-tokens`, {
+        body: { name: 'Automations', kind: 'personal', scopes: ['records:read', 'records:write'] },
+        headers: { ...tokenHeaders, 'step-up': sv.json().data.token },
+      });
+    }
+    expect(tok.statusCode, tok.body).toBe(201);
+    const secret = tok.json().data.secret as string;
+    const ownerId = (await owner.get(`${base()}/people`))
+      .json()
+      .data.find((x: { role: string }) => x.role === 'owner').id as string;
+    for (const [url, body, h] of [
+      [`${base()}/automations/${target.id}:activate`, {}, actHeaders],
+      [`${base()}/automations/${target.id}:reassign`, { owner: ownerId }, key()],
+    ] as const) {
+      const res = await env.app.inject({
+        method: 'POST',
+        url,
+        headers: { authorization: `Bearer ${secret}`, ...h },
+        payload: body,
+      });
+      bodies.push(res.body);
+      expect(res.statusCode, `${url} ${res.body}`).toBe(403);
+      expect(res.json().error.code).toBe('forbidden');
+      expect(res.headers['idempotent-replayed']).toBeUndefined();
+      expect(res.body).not.toContain(target.id);
+    }
   });
 });

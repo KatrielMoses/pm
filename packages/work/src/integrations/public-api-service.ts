@@ -1728,9 +1728,12 @@ export class PublicApiService extends IntegrationService {
   /**
    * 8A: sends one signed automation payload to one configured subscription through the same URL
    * guard, signing secrets, and transport as event deliveries, and reports a typed outcome for the
-   * effect ledger: a 2xx is sent; a refusal before any request, or a receiver's explicit refusal
-   * (4xx, 408, 425, 429), is proof it was not applied; anything else (5xx, a reset, a timeout) may
-   * have been applied and is an unknown outcome. Never retried here.
+   * effect ledger. A 2xx acknowledges delivery (sent). Only a refusal before any request left
+   * (destination no longer matching or active, no signing secret, a URL the guard refuses) is
+   * proof of non-application. Once a request has been dispatched, any other answer (any 3xx,
+   * 4xx including 408, 425, and 429, any 5xx, a reset, a timeout) is unknown: a configured
+   * webhook makes no promise that it did not act before answering, and a stable event id is not
+   * receiver deduplication (review 01 R1). Never retried here; reconciliation decides.
    */
   protected async sendAutomationWebhook(input: {
     workspaceId: string;
@@ -1799,8 +1802,6 @@ export class PublicApiService extends IntegrationService {
     });
     if (result.kind === 'status' && result.status >= 200 && result.status < 300)
       return { status: result.status };
-    if (result.kind === 'status' && result.status < 500)
-      throw new EffectNotSentError('rejected_by_receiver');
     throw new EffectOutcomeUnknownError();
   }
 
