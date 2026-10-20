@@ -7,7 +7,8 @@ type Params = { ws?: string; aut?: string; run?: string };
 
 /**
  * Automations (8A, ADR-0046; 0D PL-53). Everything is addressed by public identifiers under the
- * workspace: `auto_` definitions and their runs by the run operation's `op_` identifier. The caller
+ * workspace: `auto_` definitions and their runs by the run operation's `op_` identifier (a run is
+ * returned as `{ run }` in an `automation_run` envelope). The caller
  * is the session (activation and reassignment refuse delegated callers in the service); commands
  * use `{id}:{verb}` action segments; unsafe requests carry `Idempotency-Key`; edits carry
  * `If-Match`. Every read is decided now, for this person, in the service.
@@ -141,7 +142,7 @@ export function registerAutomations(app: FastifyInstance, work: AutomationServic
           return flat(request, reply, 'automation_preview', await work.previewAutomation(c, w, t.id, request.body));
         case 'run': {
           const r = await work.runAutomationNow(c, w, t.id, request.body, req);
-          return flat(request, reply, 'automation_run', r.data as Record<string, unknown>, r.status, r.replayed);
+          return flat(request, reply, 'automation_run', { run: r.data }, r.status, r.replayed);
         }
         default:
           return fail(request, reply, 'not_found');
@@ -151,12 +152,9 @@ export function registerAutomations(app: FastifyInstance, work: AutomationServic
   app.get(
     `${ws}/automation-runs/:run`,
     wrap(async (request, reply) =>
-      flat(
-        request,
-        reply,
-        'automation_run',
-        await work.getAutomationRun(caller(request), p(request).ws, p(request).run),
-      ),
+      flat(request, reply, 'automation_run', {
+        run: await work.getAutomationRun(caller(request), p(request).ws, p(request).run),
+      }),
     ),
   );
   app.post(
@@ -174,7 +172,7 @@ export function registerAutomations(app: FastifyInstance, work: AutomationServic
             ? await work.cancelAutomationRun(c, w, t.id, req)
             : null;
       if (!r) return fail(request, reply, 'not_found');
-      return flat(request, reply, 'automation_run', r.data as Record<string, unknown>, r.status, r.replayed);
+      return flat(request, reply, 'automation_run', { run: r.data }, r.status, r.replayed);
     }),
   );
 }

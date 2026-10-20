@@ -879,8 +879,8 @@ export class AutomationService extends AiGatewayService {
       ws,
       req,
       async (tx, p) => {
-        if (p.kind !== 'member' || caller.delegation) throw new TenancyError('forbidden');
         const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
+        if (p.kind !== 'member' || caller.delegation) throw new TenancyError('forbidden');
         if (a.lifecycle_state !== 'active') throw new TenancyError('conflict', { issues: [issue('/', 'automation_archived', 'Restore this automation first.')] });
         if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), a.version);
         let c: Compiled;
@@ -1159,8 +1159,8 @@ export class AutomationService extends AiGatewayService {
     const ownerRef = (body && typeof body === 'object' ? (body as Record<string, unknown>).owner : undefined);
     if (!isPublic(ownerRef, 'mem')) throw invalid(issue('/owner', 'invalid_reference', 'Choose a person.'));
     return this.mutate(caller, 'automation.reassign', ws, req, async (tx, p) => {
-      if (caller.delegation) throw new TenancyError('forbidden');
       const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
+      if (caller.delegation) throw new TenancyError('forbidden');
       if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), a.version);
       const m = await tx.db.selectFrom('tenancy.membership').select(['id', 'kind', 'state', 'account_id']).where('public_id', '=', ownerRef).executeTakeFirst();
       if (!m || m.kind !== 'member' || m.state !== 'active') throw invalid(issue('/owner', 'invalid_reference', 'Choose an active member of this workspace.'));
@@ -2491,8 +2491,8 @@ export class AutomationService extends AiGatewayService {
   async runAutomationNow(caller: Caller, ws: unknown, aut: unknown, body: unknown, req: Mutation) {
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     return this.mutate(caller, 'automation.run_manual', ws, req, async (tx, p) => {
-      if (p.kind !== 'member') throw new TenancyError('forbidden');
       const a = await this.#visible(tx, p, aut, { need: 'run' });
+      if (p.kind !== 'member') throw new TenancyError('forbidden');
       if (!a.enabled || !a.active_revision_id) throw new TenancyError('conflict', { issues: [issue('/', 'automation_disabled', 'Activate this automation to run it.')] });
       const revision = await this.#revision(tx, a.active_revision_id);
       const recordId = await this.#triggerRecord(tx, p, revision.record_kind, b.record);
@@ -2515,8 +2515,8 @@ export class AutomationService extends AiGatewayService {
   async previewAutomation(caller: Caller, ws: unknown, aut: unknown, body: unknown) {
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     return this.inWorkspace(caller, ws, {}, async (tx, p) => {
-      if (p.kind !== 'member') throw new TenancyError('forbidden');
       const a = await this.#visible(tx, p, aut, { need: 'configure' });
+      if (p.kind !== 'member') throw new TenancyError('forbidden');
       let c: Compiled;
       try {
         c = compileDefinition(a.draft.definition, this.automationLimits);
@@ -2810,12 +2810,12 @@ export class AutomationService extends AiGatewayService {
    */
   async retryAutomationRun(caller: Caller, ws: unknown, op: unknown, req: Mutation) {
     return this.mutate(caller, 'automation.run_retry', ws, req, async (tx, p) => {
-      if (p.kind !== 'member') throw new TenancyError('forbidden');
       if (!isPublic(op, 'op')) throw new TenancyError('not_found');
       const found = await tx.db.selectFrom('automation.automation_run as r').innerJoin('exec.operation as o', 'o.id', 'r.current_operation_id').select(['r.id', 'r.automation_id']).where('o.public_id', '=', op).executeTakeFirst();
       if (!found) throw new TenancyError('not_found');
       const a = (await this.#rows(tx, { id: found.automation_id }, true))!;
       await this.#visible(tx, p, a.public_id, { need: 'configure' });
+      if (p.kind !== 'member') throw new TenancyError('forbidden');
       const run = (await this.#runRow(tx, found.id, true))!;
       if (run.status !== 'failed' && run.status !== 'policy_rejected') throw new TenancyError('conflict', { issues: [issue('/', 'not_retryable', 'Only failed runs can be retried.')] });
       if (run.retry_count >= this.ws.automationRetriesMax) throw new TenancyError('conflict', { issues: [issue('/', 'retry_limit', 'This run was retried too many times.')] });
