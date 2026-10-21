@@ -62,6 +62,10 @@ const FAILURE_TEXT: Record<string, string> = {
   connector_changed: 'The connection changed while the run was open.',
   dispatch_refused: 'The agent refused the work.',
   emergency_stop: 'Agent work was stopped for the workspace.',
+  limit_exceeded: 'The run took longer than its limit.',
+  agent_reported_failure: 'The agent reported that it failed.',
+  assignment_withdrawn: 'The agent was withdrawn from this task.',
+  user_cancelled: '',
 };
 const DECISION_TEXT: Record<string, string> = {
   executed: 'ran',

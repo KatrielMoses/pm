@@ -2910,6 +2910,7 @@ export class AgentService extends AutomationService {
           })
           .where('id', '=', a.id)
           .execute();
+        await this.onAgentAssignmentWithdrawn(tx, a.id);
         await this.workAudit(
           tx,
           caller,
@@ -2934,6 +2935,9 @@ export class AgentService extends AutomationService {
       },
     );
   }
+
+  /** 8C: open runs of a withdrawn assignment end; their credentials stop at once. */
+  protected async onAgentAssignmentWithdrawn(_tx: WorkspaceTransaction, _assignmentId: string): Promise<void> {}
 
   /** Agent execution does not exist yet (8C): the endpoint refuses truthfully and changes nothing. */
   async startAgentRun(caller: Caller, ws: unknown, tsk: unknown, agt: unknown, _body?: unknown, _req?: Mutation): Promise<unknown> {

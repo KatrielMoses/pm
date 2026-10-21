@@ -2389,6 +2389,38 @@ export class AgentRunService extends AgentService {
     }
   }
 
+  /**
+   * A withdrawn assignment ends its open runs (AGT-012), as a cancel does: credentials stop at
+   * once; a run a worker holds is asked to cancel; any other run is closed here, reporting a
+   * dispatch that may already have left. An unknown dispatch outcome still waits for its owner's
+   * reconciliation (its guard then ends it, since the assignment is gone).
+   */
+  protected override async onAgentAssignmentWithdrawn(tx: WorkspaceTransaction, assignmentId: string) {
+    const open = await tx.db
+      .selectFrom('agents.agent_run')
+      .select('id')
+      .where('assignment_id', '=', assignmentId)
+      .where('ended_at', 'is', null)
+      .execute();
+    for (const o of open) {
+      const run = (await this.#run(tx, { id: o.id }, true))!;
+      await this.#revokeCredentials(tx, run.id, 'assignment_withdrawn');
+      if (run.op_waiting === 'reconciliation_required') continue;
+      if (run.model_operation_id) await requestOperationCancel(tx, run.model_operation_id);
+      await this.#event(tx, run, { kind: 'state', source: 'system', text: 'Ending: the agent was withdrawn from this task.', data: { state: 'cancelled' } });
+      if (run.op_state === 'running') {
+        await requestOperationCancel(tx, run.current_operation_id);
+        continue;
+      }
+      const effects = await cancelOpenEffects(tx, run.current_operation_id);
+      const liability = effects.reported.reduce<Record<string, number>>((acc, e) => {
+        acc[e.liability] = (acc[e.liability] ?? 0) + 1;
+        return acc;
+      }, {});
+      await this.#close(tx, run, 'cancelled', 'user_cancelled', { code: 'assignment_withdrawn', effect_liability: liability });
+    }
+  }
+
   // -------------------------------------------------------------------------------------------
   // 8A automations invoke agents through the same admission (AUTO-007).
   // -------------------------------------------------------------------------------------------

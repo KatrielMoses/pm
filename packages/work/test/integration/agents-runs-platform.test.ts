@@ -18,7 +18,9 @@ import {
  * Phase 8C on the platform: 8A automations invoke agents through the same admission and react to
  * their results without recursion (AUTO-007); outcomes reach 5D metrics, 7E briefings, and 4B
  * notifications per viewer, kept apart from automation rates (RPT-013, BRF-010, REL-006); purge
- * removes run content; a credential acts for one run in one workspace only.
+ * removes run content; a credential acts for one run in one workspace only; every role, guest,
+ * and share-only person across three workspaces sees only what the task lets them see; a
+ * withdrawal or the deadline ends a run mid-flight.
  */
 describe('agent runs (8C): automations, reporting, purge, isolation', () => {
   let db: TestDatabase;
@@ -26,6 +28,7 @@ describe('agent runs (8C): automations, reporting, purge, isolation', () => {
   let fx: AgentConnectorFixture;
   let w: AgentWorld;
   let other: AgentWorld;
+  let third: AgentWorld;
   let worker: WorkerRuntime;
 
   const view = async (who: Caller, run: string) =>
@@ -68,8 +71,16 @@ describe('agent runs (8C): automations, reporting, purge, isolation', () => {
     w = await agentWorld(env, db, {
       reader: { kind: 'member', role: 'read_only' },
       outsider: { kind: 'member', role: 'member' },
+      limited: { kind: 'member', role: 'limited_member' },
     });
     other = await agentWorld(env, db);
+    third = await agentWorld(env, db);
+    w.people.guest = await (
+      await import('./fixture.ts')
+    ).join(env, db, w.owner, w.ws, {
+      kind: 'guest',
+      records: [{ record: w.tasks['Write launch notes'], level: 'edit' }],
+    });
     worker = await runWorker(env);
     await grantBrand(env, db, w, w.people.reader!, w.brands.Harbor!, 'view');
   });
@@ -293,5 +304,106 @@ describe('agent runs (8C): automations, reporting, purge, isolation', () => {
       ]);
       expect(n.rows[0].n, table).toBe(0);
     }
+  });
+
+  it('AT-666 every role, guest, and share across three workspaces: readers see runs without controls; a share-only guest cannot start or control; no access is one opaque answer; other workspaces see nothing', async () => {
+    const task = w.tasks['Write launch notes']!;
+    const agent = await externalAgent(env, db, fx, worker, w, 'Isolation agent', {
+      brands: [w.brands.Harbor!],
+    });
+    await env.svc.assignAgent(w.owner, w.ws, task, { profile: agent.id, goal: 'x' }, mutation());
+    // Neither a share-only guest nor a read-only member can start a run.
+    for (const who of [w.people.guest!, w.people.reader!])
+      await expect(
+        env.svc.startAgentRun(who, w.ws, task, agent.id, {}, mutation()),
+      ).rejects.toEqual(
+        expect.objectContaining({ code: expect.stringMatching(/forbidden|not_found/) }),
+      );
+    const run = (
+      (await env.svc.startAgentRun(w.owner, w.ws, task, agent.id, {}, mutation())).data as {
+        id: string;
+      }
+    ).id;
+    await settle(db, worker);
+    // Whoever reads the task sees its runs (as with 8B assignments), without controls.
+    for (const who of [w.people.guest!, w.people.reader!]) {
+      const v = await view(who, run);
+      expect(v.capabilities).toEqual({
+        pause: false,
+        resume: false,
+        cancel: false,
+        retry: false,
+        accept: false,
+      });
+      await expect(env.svc.controlAgentRun(who, w.ws, run, 'pause', mutation())).rejects.toEqual(
+        expect.objectContaining({ code: expect.stringMatching(/forbidden|not_found/) }),
+      );
+    }
+    // No access to the task: the run, its events, and its drafts are one opaque answer.
+    for (const who of [w.people.limited!, w.people.outsider!]) {
+      await expect(env.svc.getAgentRun(who, w.ws, run)).rejects.toEqual(code('not_found'));
+      await expect(env.svc.agentRunEvents(who, w.ws, run, {})).rejects.toEqual(code('not_found'));
+      await expect(env.svc.getAgentArtifact(who, w.ws, run, 'notes')).rejects.toEqual(
+        code('not_found'),
+      );
+      await expect(env.svc.listTaskAgentRuns(who, w.ws, task)).rejects.toEqual(code('not_found'));
+    }
+    // Health and the stop are for owners and administrators only.
+    for (const who of [w.people.guest!, w.people.reader!, w.people.outsider!])
+      await expect(env.svc.agentHealth(who, w.ws)).rejects.toEqual(code('not_found'));
+    // Three workspaces never cross, in either direction.
+    for (const x of [other, third]) {
+      await expect(env.svc.getAgentRun(x.owner, x.ws, run)).rejects.toEqual(code('not_found'));
+      await expect(env.svc.getAgentRun(x.owner, w.ws, run)).rejects.toBeTruthy();
+      expect(
+        ((await env.svc.agentHealth(x.owner, x.ws)) as { runs: Record<string, number> }).runs
+          .running,
+      ).toBe(0);
+    }
+    await env.svc.controlAgentRun(w.owner, w.ws, run, 'cancel', mutation());
+    await settle(db, worker);
+  });
+
+  it('AT-667 withdrawing the assignment mid-run ends the run and its credential; the deadline fails a run that is still waiting on its agent', async () => {
+    const mk = async (title: string, name: string) => {
+      const t = (
+        await env.svc.createTask(w.owner, w.ws, { brand: w.brands.Harbor!, title }, mutation())
+      ).data.id as string;
+      const a = await externalAgent(env, db, fx, worker, w, name, { brands: [w.brands.Harbor!] });
+      await env.svc.assignAgent(w.owner, w.ws, t, { profile: a.id, goal: 'x' }, mutation());
+      const run = (
+        (await env.svc.startAgentRun(w.owner, w.ws, t, a.id, {}, mutation())).data as { id: string }
+      ).id;
+      await settle(db, worker);
+      return { t, a, run };
+    };
+    const one = await mk('Withdrawn mid-run', 'Withdrawn agent');
+    const token = tokenOf(one.a.peer);
+    expect(await credentialCaller(env, token)).not.toBeNull();
+    await env.svc.withdrawAgentAssignment(w.owner, w.ws, one.t, one.a.id, mutation());
+    await settle(db, worker);
+    // The credential stops at once; the next callback is refused; nothing is accepted.
+    expect(await credentialCaller(env, token)).toBeNull();
+    const ended = await view(w.owner, one.run);
+    expect(['failed', 'cancelled']).toContain(ended.state);
+    expect(ended.capabilities.accept).toBe(false);
+    expect((await runRow(db, one.run)).ended_at).not.toBeNull();
+
+    const two = await mk('Past its deadline', 'Slow agent');
+    const row = await runRow(db, two.run);
+    await db.admin(
+      `UPDATE agents.agent_run SET deadline_at = now() - interval '1 second' WHERE id = $1`,
+      [row.id],
+    );
+    // The run's continuation is scheduled for its deadline; bring that moment forward.
+    await db.admin(
+      `UPDATE exec.job SET run_at = now() WHERE operation_id = $1 AND state IN ('queued', 'retry_scheduled')`,
+      [row.current_operation_id],
+    );
+    await settle(db, worker);
+    await settle(db, worker);
+    const late = await view(w.owner, two.run);
+    expect(late).toMatchObject({ state: 'failed', failure: { code: 'limit_exceeded' } });
+    expect(await credentialCaller(env, tokenOf(two.a.peer))).toBeNull();
   });
 });
