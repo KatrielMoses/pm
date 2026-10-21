@@ -161,7 +161,9 @@ def check_service():
         if re.search(r"api_token|mcp_access_token|oauth.*token.*insert", text, re.I):
             errs.append("%s must not mint tokens or credentials" % rel)
     factory = read(P("packages/work/src/factory.ts"))
-    if "return new AgentService(" not in factory or "export class AgentService extends AutomationService" not in service:
+    # 8C extends this service once (AgentRunService extends AgentService, phase8c.py).
+    head = "return new AgentService(" in factory or "return new AgentRunService(" in factory
+    if not head or "export class AgentService extends AutomationService" not in service:
         errs.append("AgentService must extend the automation engine and be the chain head the factory returns")
     if ".register(agentProfileOwnerHook)" not in factory:
         errs.append("the factory must register the agent owner hook")
@@ -225,8 +227,12 @@ def check_migration():
         if term not in down:
             errs.append("0064 down lacks %s" % term)
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
-    if names[-1] != "0064_agent_profiles_connectors.up.sql":
-        errs.append("0064_agent_profiles_connectors must be the last migration")
+    later_owned = {"0065_agent_runs.up.sql": "phase8c.py"}
+    after = names[names.index("0064_agent_profiles_connectors.up.sql") + 1:] if (
+        "0064_agent_profiles_connectors.up.sql" in names) else ["?"]
+    for n in after:
+        if n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])):
+            errs.append("0064_agent_profiles_connectors must be the last migration (or held by a later validator)")
     errs += phase1.check_boundaries([64])
     mt = read(P("packages/db/test/integration/migrations.test.ts"))
     if "64" not in re.findall(r"\b64\b", mt) or "0064 cannot be rolled back" not in mt:
@@ -317,11 +323,21 @@ def check_identifiers():
 
 def check_closure_and_boundaries(closure):
     errs = []
-    if closure.get("adr") != "0047" or closure.get("status") != "candidate":
-        errs.append("closure-8b.json must be the 8B candidate under ADR-0047 (not self-accepted)")
+    # The architect accepted 8B with review 01 (recorded by the 8C brief, never self-accepted):
+    # engineering scope only; derived blocks are not stored suspensions.
+    if closure.get("adr") != "0047" or closure.get("status") != "accepted":
+        errs.append("closure-8b.json must be the accepted 8B closure under ADR-0047")
+    acc = closure.get("accepted", {})
+    if (acc.get("head") != "e51b3f19ecf215e296d08c12c14649a4e1b2565d" or acc.get("ci_run") != "39502523692"
+            or acc.get("attempt") != 1 or acc.get("corrective_reviews_closed") != ["R1", "R2"]
+            or acc.get("totals", {}).get("integration") != 1150 or acc.get("totals", {}).get("browser") != 291
+            or "not stored suspensions" not in acc.get("boundaries", "")):
+        errs.append("the closure must record the architect's acceptance (e51b3f1, run 39502523692, attempt 1, totals, R1-R2, boundaries)")
     adr = read(P(ADR))
-    if not re.search(r"^Status: \*\*proposed\*\*", adr, re.M):
-        errs.append("ADR-0047 stays proposed until the architect reviews it")
+    status = next((l for l in adr.split("\n") if l.startswith("Status: ")), "")
+    if not (status.startswith("Status: **accepted** (engineering scope") and "e51b3f1" in status
+            and "39502523692" in status and "not production" in status and "not stored suspensions" in status):
+        errs.append("ADR-0047 must record the architect's acceptance at e51b3f1, run 39502523692, without production approval")
     for d in DECISIONS:
         if "\n| %s |" % d not in adr:
             errs.append("ADR-0047 lacks decision %s" % d)
@@ -345,16 +361,21 @@ def check_closure_and_boundaries(closure):
     if closure.get("base", {}).get("head") != "802c0265ca2a40e50fc5fea35b866c895c00fe10":
         errs.append("the closure base must be the accepted 8A head 802c026")
     web = read(P("apps/web/src/agents/pages.tsx"))
-    if "Assigned; execution available in Phase 8C." not in web:
+    # 8C replaces the note with real run controls (TaskAgentRuns, phase8c.py).
+    if "Assigned; execution available in Phase 8C." not in web and not (
+            "<TaskAgentRuns" in web and os.path.isfile(P("apps/web/src/agents/runs.tsx"))):
         errs.append("the task Agent section must say execution is available in Phase 8C")
-    return errs, "candidate under a proposed ADR; boundaries 8C/8D/10A/10B, production connectors and AI, manual, follow-ups"
+    return errs, "accepted at e51b3f1 (run 39502523692); boundaries 8C/8D/10A/10B, production connectors and AI, manual, follow-ups"
 
 
 def check_review01(closure):
     """8B-CR-01: hidden scope is omitted (R1); one assignment eligibility rule (R2)."""
     errs = []
     cache = {}
-    service = read(P(SERVICE))
+    # 8C promotes the shared helpers to protected `ag*` names for AgentRunService (ADR-0048);
+    # the rules themselves are unchanged, so either spelling is checked the same way.
+    service = read(P(SERVICE)).replace("protected async agScopeView(", "async #scopeView(").replace(
+        "protected async agDecide(", "async #decide(").replace("this.agRequireAssignable(", "this.#requireAssignable(")
     scope = block(service, "  async #scopeView(", "\n  }\n")
     if not scope or "not_shown" in service or "hidden" in scope or "return { items: out };" not in scope:
         errs.append("R1: the scope renderer must omit hidden items with no count or flag")

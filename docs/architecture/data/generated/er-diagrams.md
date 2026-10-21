@@ -491,6 +491,8 @@ erDiagram
   operation ||--|| agent_run : "extends"
   agent_run }o..o{ task : "references"
   agent_run }o..o{ agent_profile : "references"
+  agent_run ||--o{ agent_run_event : "contains"
+  agent_run ||--o{ agent_run_credential : "contains"
   agent_run ||--o{ agent_tool_call : "contains"
   agent_tool_call }o..o{ external_effect : "references"
   agent_run ||--o{ artifact : "contains"

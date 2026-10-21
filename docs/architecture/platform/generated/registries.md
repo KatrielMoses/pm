@@ -217,7 +217,8 @@ Source: `contracts/registry.json`.
 | `access.role.assigned` v1 | access.role_assignment | scope_type, role_id | C1 | yes | yes |  |  |  | — |
 | `access.role.revoked` v1 | access.role_assignment | scope_type | C1 | yes | yes |  |  |  | — |
 | `agents.action_approval.requested` v1 | agents.action_approval | action_class, risk_class | C1 | yes | yes |  |  |  | — |
-| `agents.agent_run.output_returned` v1 | agents.agent_run | deliverable_version_id | C1 | yes | yes |  | yes |  | `agent_run.output_returned` |
+| `agents.agent_run.failed` v1 | agents.agent_run | run_id, task_id, terminal_reason | C1 | yes | yes | yes |  |  | — |
+| `agents.agent_run.output_returned` v1 | agents.agent_run | run_id, task_id, artifact_count, deliverable_version_id | C1 | yes | yes |  | yes |  | `agent_run.output_returned` |
 | `ai.briefing.generated` v1 | ai.briefing | kind, period_key | C1 |  | yes |  |  |  | — |
 | `ai.proposal.applied` v1 | ai.change_proposal | applied_count, failed_count | C1 | yes |  |  | yes |  | — |
 | `automation.automation_run.failed` v1 | automation.automation_run | automation_id, terminal_reason | C1 | yes | yes | yes |  |  | — |
@@ -500,6 +501,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `integrations.jobs` | counter | kind, outcome | integrations |
 | `integration.sync.duration` | histogram | provider, outcome | integrations |
 | `ai.request.duration` | histogram | provider_class, outcome | ai |
+| `agent.runs` | counter | outcome | agents |
 | `agent.tool_calls` | counter | tool_class, outcome | agents |
 | `automation.runs` | counter | outcome | automations |
 | `usage.reservations_denied` | counter | meter | usage |
@@ -943,3 +945,11 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `AGENT_CONNECTOR_RESPONSE_MAX_BYTES` | Technical agent limit: bytes of one handshake answer; more is refused, never truncated; default 65536, range 1024–1048576. | 8B |
 | `AGENT_CONNECTOR_TESTS_PER_HOUR` | Technical agent limit: connector tests of one profile per hour, reserved under the connector lock; default 20, range 1–200. | 8B |
 | `AGENT_CONNECTOR_TRANSPORT` | Agent connector test transport: none (default) or fixture (the synthetic local peers, loopback only); refused in deployed environments. No live transport exists until an approved secret store and credentials do (DQ-28). | 8B |
+| `AGENT_RUNS_ACTIVE_MAX` | Technical agent run limit: open agent runs per workspace, reserved under a workspace lock at admission; default 10, range 1–200. | 8C |
+| `AGENT_RUN_RETRIES_MAX` | Technical agent run limit: human retries of one logical run, each a linked operation keeping the run's counters and deadline; default 3, range 0–10. | 8C |
+| `AGENT_RUN_EVENTS_MAX` | Technical agent run limit: progress events stored for one run; more are refused, never dropped silently; default 500, range 10–5000. | 8C |
+| `AGENT_RUN_EVENT_TEXT_MAX_CHARS` | Technical agent run limit: characters of one progress or commentary event; default 2000, range 100–2000. | 8C |
+| `AGENT_ARTIFACT_MAX_BYTES` | Technical agent run limit: bytes of one draft artifact version (Markdown, plain text, or JSON; SHA-256 checked); default 262144, range 1024–1048576. | 8C |
+| `AGENT_RUN_OUTPUT_MAX_BYTES` | Technical agent run limit: total artifact bytes one run may return; default 1048576, range 1024–10485760. | 8C |
+| `AGENT_RUN_CREDENTIAL_TTL_SECONDS` | Lifetime of one run-bound agent credential (hash stored only), never past the run's deadline; revoked earlier on pause, wait, cancel, emergency stop, withdrawal, or end; default 900, range 60–3600. | 8C |
+| `AGENT_RUN_POLL_WAIT_SECONDS` | Longest wait of one agent run progress long poll; access is decided again on every check; default 20, range 0–30. | 8C |

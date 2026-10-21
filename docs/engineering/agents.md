@@ -2,7 +2,7 @@
 
 Engineering record: [ADR-0047](adr/0047-agent-profiles-connectors.md). Closure: [phase8/closure-8b.json](phase8/closure-8b.json), checked by `tools/phase8b.py`. Data: [database.md](database.md#phase-8b-agent-profiles-connectors-and-assignments).
 
-Phase 8B configures agents and assigns them to tasks. **Nothing runs an agent yet**: runs, run credentials, tool calls, progress, artifacts, and emergency stop arrive in 8C; per-action approval and acceptance in 8D. `POST /tasks/{tsk}/agents/{agt}:run` answers `dependency_unavailable`.
+Phase 8B configures agents and assigns them to tasks. Phase 8C runs them: runs, run credentials, tool calls, progress, artifacts, and the emergency stop are in the [agent run notes](agent-runs.md); per-action approval and acceptance arrive in 8D.
 
 ## Profiles
 

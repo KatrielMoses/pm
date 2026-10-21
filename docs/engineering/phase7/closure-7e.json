@@ -168,11 +168,11 @@
       "id": "BRF-010",
       "role": "owned",
       "disposition": "foundation",
-      "note": "Agent-run review is an explicit unavailable statement until Phase 8C supplies real agent runs; no generic operation is presented as an agent.",
+      "note": "Agent-run review is an explicit unavailable statement until Phase 8C supplies real agent runs; no generic operation is presented as an agent. Reconciled by Phase 8C (ADR-0048): the briefing now states real agent runs ready for review per viewer (agent_runs.ready and per-task facts) from agents.agent_run; nothing is presented as accepted.",
       "evidence": [
         {
           "file": "packages/work/src/ai/briefing/facts.ts",
-          "contains": "key: 'agent_runs.foundation',"
+          "contains": "key: 'agent_runs.ready',"
         },
         {
           "file": "packages/work/test/integration/briefings.test.ts",

@@ -217,6 +217,26 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
         if (workspacePath !== resolved.workspacePublicId)
           return fail(request, reply, 'unauthenticated');
       }
+      // 8C: a run-bound credential reaches only its run's callbacks and the MCP endpoint; every
+      // other path is one opaque answer (the run itself is re-checked by the service).
+      if (resolved.delegation.principalType === 'agent_run') {
+        const callback =
+          /^\/v1\/workspaces\/[^/]+\/agent-runs\/[^/]+\/(context|events|tools|artifacts|result)$/.test(
+            path,
+          ) ||
+          (/^\/v1\/workspaces\/[^/]+\/mcp$/.test(path) && request.method === 'POST');
+        if (!callback) return fail(request, reply, 'not_found');
+        const runLimit = path.endsWith('/mcp')
+          ? undefined
+          : await deps.limitBearer?.(resolved.delegation.tokenId, request.method !== 'GET');
+        if (runLimit && !runLimit.allowed)
+          return fail(request, reply, 'rate_limited', {
+            retryAfterSeconds: runLimit.retryAfterSeconds,
+          });
+        request.auth = resolved.auth;
+        request.delegation = resolved.delegation;
+        return;
+      }
       if (
         path.includes('/api-tokens') ||
         path.includes('/webhook-subscriptions') ||
@@ -256,6 +276,23 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       // grant authority never come from a token); task assignments need `agents:execute`.
       if (/^\/v1\/workspaces\/[^/]+\/agent(s|-templates|-tools)(\/|$)/.test(path))
         return fail(request, reply, 'forbidden');
+      // 8C: the emergency stop and agent health are session-only; run controls need
+      // `agents:execute`; run callbacks are for run-bound credentials only.
+      if (/^\/v1\/workspaces\/[^/]+\/agent-(emergency-stop|health)/.test(path))
+        return fail(request, reply, 'forbidden');
+      if (
+        /^\/v1\/workspaces\/[^/]+\/agent-runs\/[^/]+\/(context|events|tools|artifacts|result)$/.test(
+          path,
+        ) &&
+        write
+      )
+        return fail(request, reply, 'not_found');
+      if (/^\/v1\/workspaces\/[^/]+\/agent-runs\//.test(path) && write) {
+        if (!held.includes('agents:execute')) return fail(request, reply, 'forbidden');
+        request.auth = resolved.auth;
+        request.delegation = resolved.delegation;
+        return;
+      }
       if (/^\/v1\/workspaces\/[^/]+\/tasks\/[^/]+\/agent/.test(path) && write) {
         if (!held.includes('agents:execute')) return fail(request, reply, 'forbidden');
         request.auth = resolved.auth;

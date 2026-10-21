@@ -314,6 +314,14 @@ describe('server configuration', () => {
       agentConnectorTimeoutMs: 10000,
       agentConnectorResponseMaxBytes: 65536,
       agentConnectorTestsPerHour: 20,
+      agentRunsActiveMax: 10,
+      agentRunRetriesMax: 3,
+      agentRunEventsMax: 500,
+      agentRunEventTextMaxChars: 2000,
+      agentArtifactMaxBytes: 262144,
+      agentRunOutputMaxBytes: 1048576,
+      agentRunCredentialTtlSeconds: 900,
+      agentRunPollWaitSeconds: 20,
       agentConnectorTransport: 'none',
       webhookAllowLoopback: true,
       documentEmbedUrlMaxChars: 2048,
@@ -428,6 +436,32 @@ describe('server configuration', () => {
         }),
       ),
     ).toContain('DATABASE_WORKER_URL: must authenticate as role app_worker');
+  });
+
+  it('agent run limits (8C, 0D PL-55): conservative defaults and hard maximums', () => {
+    for (const [name, max] of [
+      ['AGENT_RUNS_ACTIVE_MAX', 200],
+      ['AGENT_RUN_RETRIES_MAX', 10],
+      ['AGENT_RUN_EVENTS_MAX', 5000],
+      ['AGENT_RUN_EVENT_TEXT_MAX_CHARS', 2000],
+      ['AGENT_ARTIFACT_MAX_BYTES', 1048576],
+      ['AGENT_RUN_OUTPUT_MAX_BYTES', 10485760],
+      ['AGENT_RUN_CREDENTIAL_TTL_SECONDS', 3600],
+      ['AGENT_RUN_POLL_WAIT_SECONDS', 30],
+    ] as const) {
+      expect(
+        issues(() =>
+          loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max + 1) } }),
+        )[0],
+        name,
+      ).toMatch(new RegExp(`^${name}`));
+      expect(
+        issues(() =>
+          loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max) } }),
+        ),
+        name,
+      ).toEqual([]);
+    }
   });
 
   it('agent limits (8B, 0D PL-54): conservative defaults, hard maximums, and the fixture transport refused when deployed', () => {

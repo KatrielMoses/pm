@@ -1437,10 +1437,39 @@
       "delivery_authorization": null
     },
     {
+      "type": "agents.agent_run.failed",
+      "schema_version": 1,
+      "aggregate_entity": "agents.agent_run",
+      "fields": [
+        "run_id",
+        "task_id",
+        "terminal_reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "AGT-022",
+        "REL-006",
+        "LA-017"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
       "type": "agents.agent_run.output_returned",
       "schema_version": 1,
       "aggregate_entity": "agents.agent_run",
       "fields": [
+        "run_id",
+        "task_id",
+        "artifact_count",
         "deliverable_version_id"
       ],
       "max_class": "C1",
@@ -1453,7 +1482,8 @@
       },
       "public_webhook": "agent_run.output_returned",
       "requirements": [
-        "AGT-013"
+        "AGT-013",
+        "BRF-010"
       ],
       "allow_list_version": 1,
       "delivery_authorization": "subscription_owner_at_delivery"
@@ -6083,6 +6113,14 @@
       "area": "ai"
     },
     {
+      "name": "agent.runs",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "agents"
+    },
+    {
       "name": "agent.tool_calls",
       "type": "counter",
       "labels": [
@@ -8657,6 +8695,46 @@
       "name": "AGENT_CONNECTOR_TRANSPORT",
       "meaning": "Agent connector test transport: none (default) or fixture (the synthetic local peers, loopback only); refused in deployed environments. No live transport exists until an approved secret store and credentials do (DQ-28).",
       "owner": "8B"
+    },
+    {
+      "name": "AGENT_RUNS_ACTIVE_MAX",
+      "meaning": "Technical agent run limit: open agent runs per workspace, reserved under a workspace lock at admission; default 10, range 1\u2013200.",
+      "owner": "8C"
+    },
+    {
+      "name": "AGENT_RUN_RETRIES_MAX",
+      "meaning": "Technical agent run limit: human retries of one logical run, each a linked operation keeping the run's counters and deadline; default 3, range 0\u201310.",
+      "owner": "8C"
+    },
+    {
+      "name": "AGENT_RUN_EVENTS_MAX",
+      "meaning": "Technical agent run limit: progress events stored for one run; more are refused, never dropped silently; default 500, range 10\u20135000.",
+      "owner": "8C"
+    },
+    {
+      "name": "AGENT_RUN_EVENT_TEXT_MAX_CHARS",
+      "meaning": "Technical agent run limit: characters of one progress or commentary event; default 2000, range 100\u20132000.",
+      "owner": "8C"
+    },
+    {
+      "name": "AGENT_ARTIFACT_MAX_BYTES",
+      "meaning": "Technical agent run limit: bytes of one draft artifact version (Markdown, plain text, or JSON; SHA-256 checked); default 262144, range 1024\u20131048576.",
+      "owner": "8C"
+    },
+    {
+      "name": "AGENT_RUN_OUTPUT_MAX_BYTES",
+      "meaning": "Technical agent run limit: total artifact bytes one run may return; default 1048576, range 1024\u201310485760.",
+      "owner": "8C"
+    },
+    {
+      "name": "AGENT_RUN_CREDENTIAL_TTL_SECONDS",
+      "meaning": "Lifetime of one run-bound agent credential (hash stored only), never past the run's deadline; revoked earlier on pause, wait, cancel, emergency stop, withdrawal, or end; default 900, range 60\u20133600.",
+      "owner": "8C"
+    },
+    {
+      "name": "AGENT_RUN_POLL_WAIT_SECONDS",
+      "meaning": "Longest wait of one agent run progress long poll; access is decided again on every check; default 20, range 0\u201330.",
+      "owner": "8C"
     }
   ],
   "sse_topics": [

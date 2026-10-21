@@ -234,6 +234,7 @@ async function main(): Promise<void> {
       metrics: telemetry.metrics,
       webhooks: reportService,
       automations: reportService,
+      agents: reportService,
     }),
     schedules: registeredSchedules(),
     params: { ...config.jobs, outboxReplayWindowMs: config.retention.outboxReplayWindowMs },

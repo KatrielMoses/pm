@@ -19,8 +19,31 @@ export async function purgeTaskAgentAssignments(
   );
 }
 
+/**
+ * 8C: runs of the given assignments go first, with their events, tool calls, draft artifacts, and
+ * credentials (the run operations stay in the execution history like any other). Purging a run's
+ * record is erasure of its content; a run that may still be dispatched (open) is cancelled by the
+ * task or profile lifecycle before purge, so nothing here can strand an open dispatch.
+ */
+export async function purgeAgentRuns(tx: WorkspaceTransaction, where: { assignmentIds: string[] }) {
+  if (!where.assignmentIds.length) return;
+  const runs = await tx.db
+    .selectFrom('agents.agent_run')
+    .select('id')
+    .where('assignment_id', 'in', where.assignmentIds)
+    .execute();
+  const ids = runs.map((r) => r.id);
+  if (!ids.length) return;
+  await tx.db.deleteFrom('agents.agent_run_credential').where('run_id', 'in', ids).execute();
+  await tx.db.deleteFrom('agents.agent_artifact').where('run_id', 'in', ids).execute();
+  await tx.db.deleteFrom('agents.agent_tool_call').where('run_id', 'in', ids).execute();
+  await tx.db.deleteFrom('agents.agent_run_event').where('run_id', 'in', ids).execute();
+  await tx.db.deleteFrom('agents.agent_run').where('id', 'in', ids).execute();
+}
+
 async function deleteAssignments(tx: WorkspaceTransaction, ids: string[]) {
   if (!ids.length) return;
+  await purgeAgentRuns(tx, { assignmentIds: ids });
   // The current-revision reference is deferred: revisions and their assignment go in one commit.
   await tx.db
     .deleteFrom('agents.agent_assignment_revision')

@@ -201,7 +201,7 @@ describe('Dashboards and reports (5D)', () => {
         env.svc.createDashboard(
           owner,
           ws,
-          { title: 'X', kind: 'owner', layout: { widgets: [widget('a', 'agent.rates')] } },
+          { title: 'X', kind: 'owner', layout: { widgets: [widget('a', 'quality.release')] } },
           mutation(),
         ),
       );
@@ -216,9 +216,10 @@ describe('Dashboards and reports (5D)', () => {
       );
       expect(e2.issues?.[0]).toMatchObject({ code: 'unknown_metric' });
       const cat = await env.svc.insightMetrics(owner, ws);
-      expect(cat.not_available.map((m) => m.key)).toContain('agent.rates');
-      // 7A registered AI usage and 8A automation outcomes through the port; neither is listed
-      // as unavailable any more.
+      expect(cat.not_available.map((m) => m.key)).toContain('quality.release');
+      // 7A registered AI usage, 8A automation outcomes, and 8C agent outcomes through the port;
+      // none is listed as unavailable any more.
+      expect(cat.not_available.map((m) => m.key)).not.toContain('agent.rates');
       expect(cat.not_available.map((m) => m.key)).not.toContain('ai.usage');
       expect(cat.not_available.map((m) => m.key)).not.toContain('automation.rates');
     });

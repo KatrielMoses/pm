@@ -121,7 +121,8 @@ def check_numbering(closure):
     later = {"0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py"),
              "0062": ("0062_automation_engine.up.sql", "phase8a.py"),
              "0063": ("0063_automation_checkpoint_refs.up.sql", "phase8a.py"),
-             "0064": ("0064_agent_profiles_connectors.up.sql", "phase8b.py")}
+             "0064": ("0064_agent_profiles_connectors.up.sql", "phase8b.py"),
+             "0065": ("0065_agent_runs.up.sql", "phase8c.py")}
     for k in sorted(k for k in by if k > "0060"):
         name, validator = later.get(k, (None, None))
         if by[k] != name or not os.path.isfile(P("docs/engineering/tools/%s" % validator)):
@@ -201,7 +202,7 @@ def check_composition():
     extended = (os.path.isfile(P(automation))
                 and "export class AutomationService extends AiGatewayService" in read(P(automation))
                 and ("return new AutomationService(" in factory or (
-                    "return new AgentService(" in factory and os.path.isfile(P(agents))
+                    ("return new AgentService(" in factory or "return new AgentRunService(" in factory) and os.path.isfile(P(agents))
                     and "export class AgentService extends AutomationService" in read(P(agents)))))
     if "return new AiGatewayService(" not in factory and not extended:
         errs.append("the factory returns the gateway (return new AiGatewayService( or its 8A extension)")

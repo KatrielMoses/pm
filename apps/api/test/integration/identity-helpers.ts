@@ -136,6 +136,20 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
       localOAuth,
       // The production bearer path (API tokens and OAuth access tokens), as main.ts wires it.
       resolveBearer: async (secret: string) => {
+        // 8C: run-bound agent credentials first, exactly as main.ts resolves them.
+        const run = secret.startsWith('par_')
+          ? await work.authenticateAgentRunCredential(secret)
+          : null;
+        if (run) {
+          const runCaller = syntheticCaller(run.accountId, run.delegation, {
+            correlationId: '0'.repeat(32),
+          });
+          return {
+            auth: runCaller.auth,
+            delegation: run.delegation,
+            workspacePublicId: run.workspacePublicId,
+          };
+        }
         const apiToken = await work.authenticateApiToken(secret);
         const oauthToken = apiToken ? null : await work.authenticateOAuthAccessToken(secret);
         const found = apiToken ?? oauthToken;

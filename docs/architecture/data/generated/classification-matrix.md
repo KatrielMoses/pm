@@ -38,7 +38,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Templates and onboarding | 4 | C1 | R-LIVE | filtered | no, yes | no | incidental | low |
 | AI actions and briefings | 17 | C4 | R-EXEC, R-LIVE, R-PERSONAL | filtered, never, self | no, yes | secret-ref | incidental | very-high |
 | Automations | 7 | C2 | R-AUDIT, R-EXEC, R-LIVE | admin, filtered, never | no, yes | no | incidental, no | very-high |
-| Agents and execution control | 13 | C4 | R-AUDIT, R-EVIDENCE, R-EXEC, R-LIVE | filtered, never | no, yes | secret-ref | incidental | very-high |
+| Agents and execution control | 15 | C4 | R-AUDIT, R-EVIDENCE, R-EXEC, R-LIVE | filtered, never | no, yes | secret-ref | incidental, no | very-high |
 | Support and feedback | 4 | C3 | R-EPHEMERAL, R-LIVE, R-PLATFORM | never, self | no, yes | possible | incidental, yes | medium |
 | Metrics ledger | 2 | C1 | R-DERIVED | never | no | no | no | high |
 
@@ -283,7 +283,9 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`agent_connector_test`](logical-model.md#entity-agent-connector-test) | agents | workspace | C1 | low | is evidence / append-only | R-EXEC | never | low | no | no | incidental |
 | [`agent_assignment`](logical-model.md#entity-agent-assignment) | agents | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`agent_assignment_revision`](logical-model.md#entity-agent-assignment-revision) | agents | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
-| [`agent_run`](logical-model.md#entity-agent-run) | agents | brand | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | high | yes | no | incidental |
+| [`agent_run`](logical-model.md#entity-agent-run) | agents | brand | C2 | standard (per-record) | material changes | R-EXEC | filtered | high | yes | no | incidental |
+| [`agent_run_event`](logical-model.md#entity-agent-run-event) | agents | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | very-high | no | no | incidental |
+| [`agent_run_credential`](logical-model.md#entity-agent-run-credential) | agents | inherited | C3 | high | all changes + access | R-EXEC | never | medium | no | no | no |
 | [`agent_tool_call`](logical-model.md#entity-agent-tool-call) | agents | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | very-high | no | no | incidental |
 | [`artifact`](logical-model.md#entity-artifact) | agents | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | high | yes | no | incidental |
 | [`action_approval`](logical-model.md#entity-action-approval) | agents | brand | C2 | standard (per-record) | material changes | R-EVIDENCE | filtered | medium | yes | no | incidental |

@@ -1656,6 +1656,99 @@
         "I-12",
         "I-14"
       ]
+    },
+    {
+      "id": "T-164",
+      "category": "agent_scope",
+      "description": "A run reads or acts with authority wider than it was admitted with: the current (edited) profile grants, a widened assignment, a later grant to the assigner, or tools that were not pinned at admission, so a change in flight broadens a running agent.",
+      "mitigated_by": [
+        "I-11",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-165",
+      "category": "revocation",
+      "description": "Authority lost between preview, admission, credential issue, checkpoint preparation, and the actual dispatch (an assigner downgrade, withdrawal or departure, an archived or trashed task, a lost scope, or the emergency stop) still sends the brief or task content, or a late callback is accepted afterwards.",
+      "mitigated_by": [
+        "I-12",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-166",
+      "category": "spoofing",
+      "description": "A run-bound credential is used outside its run: on another run, another workspace, people's routes or controls, other MCP methods or tools, after revocation or expiry, or it is stored, logged, or checkpointed in the clear.",
+      "mitigated_by": [
+        "I-01",
+        "I-03",
+        "I-14",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-167",
+      "category": "agent_scope",
+      "description": "An agent claims completion or acceptance through commentary, progress, an acknowledgment, or its own result, or a ready-for-review run is presented as accepted or changes the task's status or deliverable.",
+      "mitigated_by": [
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-168",
+      "category": "agent_scope",
+      "description": "A mutating or high-risk tool request (update, create, code, tests, or an unregistered tool) executes during a run before a per-instance human approval exists (8D), or a refused request still changes a record.",
+      "mitigated_by": [
+        "I-14",
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-169",
+      "category": "staleness",
+      "description": "A crash, lease expiry, redelivery, duplicate key, or overlapping result causes a second dispatch, a second model turn, a double settlement, or a dispatch whose outcome is unknown to be sent again automatically.",
+      "mitigated_by": [
+        "I-12",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-170",
+      "category": "inference",
+      "description": "Run views, progress streams, artifacts, health counts, metrics, briefings, or notifications reveal a run, its scope, or its output to a person who cannot read the task, or count runs across workspaces.",
+      "mitigated_by": [
+        "I-03",
+        "I-07",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-171",
+      "category": "agent_scope",
+      "description": "Budgets and limits are bypassed: concurrent admissions exceed the open-run limit, tool calls, artifacts, output bytes, events, retries, or the deadline are exceeded, or an agent's reported cost is shown as measured.",
+      "mitigated_by": [
+        "I-01",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-172",
+      "category": "revocation",
+      "description": "The emergency stop leaves a run working or a credential valid, or restart silently resumes paused runs without re-deciding each run's authority.",
+      "mitigated_by": [
+        "I-12",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-173",
+      "category": "guest_escalation",
+      "description": "A guest, share-only person, read-only member, token without agents:execute, or an automation owner without agent.assign starts or controls a run, or a token reads health or triggers the stop.",
+      "mitigated_by": [
+        "I-01",
+        "I-11",
+        "I-14"
+      ]
     }
   ],
   "tests": [
@@ -12638,6 +12731,395 @@
       "response_shape": "ok_filtered",
       "silent_surfaces": [
         "ui_record"
+      ]
+    },
+    {
+      "id": "AT-643",
+      "threats": [
+        "T-164",
+        "T-167",
+        "T-168"
+      ],
+      "principal": "owner",
+      "setup": "External run end to end: admission, dispatch with a run-bound credential, scoped read, refused write, progress, draft artifact, ready for review; task unchanged",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-644",
+      "threats": [
+        "T-167",
+        "T-171"
+      ],
+      "principal": "owner",
+      "setup": "Internal run through the AI gateway under the run principal; AI not configured is a refusal",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-645",
+      "threats": [
+        "T-165",
+        "T-166"
+      ],
+      "principal": "owner",
+      "setup": "Pause revokes the credential at once; resume re-decides and re-dispatches with a new credential",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-646",
+      "threats": [
+        "T-165",
+        "T-169"
+      ],
+      "principal": "owner",
+      "setup": "Cancel after dispatch: terminal, reports what may have left, late callbacks refused",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-647",
+      "threats": [
+        "T-171"
+      ],
+      "principal": "owner",
+      "setup": "Retry links a new operation, keeps counters and deadline, stops at the retry limit",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-648",
+      "threats": [
+        "T-165"
+      ],
+      "principal": "member",
+      "setup": "Assigner downgraded after admission and before dispatch",
+      "scope": "assigner lost access mid-run",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "approval_required",
+      "silent_surfaces": [
+        "webhook_payload"
+      ]
+    },
+    {
+      "id": "AT-649",
+      "threats": [
+        "T-165",
+        "T-166"
+      ],
+      "principal": "agent_run",
+      "setup": "Authority lost after dispatch; an archived task",
+      "scope": "assigner lost access mid-run",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-650",
+      "threats": [
+        "T-169"
+      ],
+      "principal": "system_job",
+      "setup": "An unknown dispatch outcome",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-651",
+      "threats": [
+        "T-172"
+      ],
+      "principal": "owner",
+      "setup": "Emergency stop with open runs; restart",
+      "scope": "workspace",
+      "action": "emergency_stop.trigger",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-652",
+      "threats": [
+        "T-171"
+      ],
+      "principal": "agent_run",
+      "setup": "Tool call, artifact, and concurrent open-run limits",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-653",
+      "threats": [
+        "T-169"
+      ],
+      "principal": "agent_run",
+      "setup": "Replayed start key; duplicate event, tool, and result keys",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-654",
+      "threats": [
+        "T-169"
+      ],
+      "principal": "system_job",
+      "setup": "Worker dies after claiming the dispatch",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-655",
+      "threats": [
+        "T-169",
+        "T-166"
+      ],
+      "principal": "system_job",
+      "setup": "Worker dies after sending; owner confirms the send; overlapping results",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-656",
+      "threats": [
+        "T-169"
+      ],
+      "principal": "system_job",
+      "setup": "Redelivered internal run job",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-657",
+      "threats": [
+        "T-173",
+        "T-169"
+      ],
+      "principal": "automation",
+      "setup": "Automation invokes an agent and reacts to its result; loop",
+      "scope": "task",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-658",
+      "threats": [
+        "T-170"
+      ],
+      "principal": "member",
+      "setup": "Run outcomes in metrics, briefings, and notifications per viewer",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "notification_inapp",
+        "digest",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-659",
+      "threats": [
+        "T-166",
+        "T-170"
+      ],
+      "principal": "agent_run",
+      "setup": "Credential against another run, a guessed id, another workspace, people's controls",
+      "scope": "cross-workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-660",
+      "threats": [
+        "T-170"
+      ],
+      "principal": "system_job",
+      "setup": "Task purge with runs",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-661",
+      "threats": [
+        "T-166",
+        "T-167"
+      ],
+      "principal": "agent_run",
+      "setup": "Over HTTP: callbacks and long poll with the run credential; other routes",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-662",
+      "threats": [
+        "T-166",
+        "T-168"
+      ],
+      "principal": "agent_run",
+      "setup": "MCP kind: run tools through the MCP endpoint; other methods and tools",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-663",
+      "threats": [
+        "T-173",
+        "T-172"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Controls need agents:execute; tokens never stop or read health",
+      "scope": "workspace",
+      "action": "emergency_stop.trigger",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-664",
+      "threats": [
+        "T-167"
+      ],
+      "principal": "owner",
+      "setup": "Browser: preview, start, progress, draft artifact ready for review; no accept control",
+      "scope": "task",
+      "action": "agent.run_control",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-665",
+      "threats": [
+        "T-172"
+      ],
+      "principal": "owner",
+      "setup": "Browser: pause, emergency stop, allow again, resume, cancel",
+      "scope": "workspace",
+      "action": "emergency_stop.trigger",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-666",
+      "threats": [
+        "T-170",
+        "T-173"
+      ],
+      "principal": "guest",
+      "setup": "Every role, guest, and share across three workspaces",
+      "scope": "shared record",
+      "action": "agent.run_control",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-667",
+      "threats": [
+        "T-165",
+        "T-171"
+      ],
+      "principal": "member",
+      "setup": "Withdrawal mid-run; the deadline",
+      "scope": "task",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
       ]
     }
   ]

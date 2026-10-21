@@ -184,6 +184,9 @@ describe('Agents (8B)', () => {
           },
         }),
       'POST /agents': () => json(201, { data: profile() }),
+      // A member without health access: the health card stays out of the way.
+      'GET /agent-health': () =>
+        json(404, { error: { code: 'not_found', status: 404, message: 'Not found' } }),
     });
     shell(<AgentsPage ws={WS} />);
     const list = await screen.findByRole('list', { name: 'Agents' });
@@ -231,7 +234,7 @@ describe('Agents (8B)', () => {
     expect((screen.getByRole('button', { name: 'Turn on' }) as HTMLButtonElement).disabled).toBe(
       true,
     );
-    expect(screen.getByText(/Nothing runs yet/)).toBeTruthy();
+    expect(screen.getByText(/Runs start from a task this agent is assigned to/)).toBeTruthy();
     expect(screen.getByText(/Live agent connectors need an approved secret store/)).toBeTruthy();
   });
 
@@ -433,6 +436,8 @@ describe('Task Agent section (8B)', () => {
     const calls = serve({
       [`GET /tasks/${TSK}/agents`]: () =>
         list(assigned ? [{ ...assignment, state: 'assigned', blocked_reasons: [] }] : [], true),
+      [`GET /tasks/${TSK}/agent-runs`]: () =>
+        json(200, { data: { type: 'agent_runs', task: TSK, items: [] } }),
       'GET /agents': () =>
         json(200, {
           data: [profile({ state: 'active', capabilities: { configure: false, assign: true } })],
@@ -504,7 +509,9 @@ describe('Task Agent section (8B)', () => {
     expect(post.key).toMatch(/^web-/);
     const items = await screen.findByRole('list', { name: 'Assigned agents' });
     expect(within(items).getByText('Assigned')).toBeTruthy();
-    expect(screen.getByText(/Nothing runs yet/)).toBeTruthy();
+    // 8C: runs appear beside the assignment; this list says execution is unavailable, so none start.
+    expect(await screen.findByRole('region', { name: 'Runs' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Run Docs agent' })).toBeNull();
     fireEvent.click(within(items).getByRole('button', { name: 'Withdraw' }));
     expect(calls.some((c) => c.path.endsWith(':withdraw'))).toBe(false);
     const dialog = await screen.findByRole('alertdialog', { name: 'Withdraw Docs agent?' });
@@ -513,5 +520,476 @@ describe('Task Agent section (8B)', () => {
     );
     expect(calls.find((c) => c.path.endsWith(':withdraw'))!.key).toMatch(/^web-/);
     expect(calls.filter((c) => c.path.endsWith(':run'))).toHaveLength(0);
+  });
+});
+
+describe('Agent runs (8C)', () => {
+  const RUN = 'op_01ARZ3NDEKTSV4RRFFQ69G5RUN';
+  const LIVE = { available: true, owner: '8C', note: 'Start a run from the task.' };
+  const assigned = {
+    id: `${TSK}:${AGT}`,
+    type: 'agent_assignment',
+    profile: { id: AGT, name: 'Docs agent', kind: 'internal' },
+    state: 'assigned',
+    blocked_reasons: [],
+    revision: 1,
+    goal: 'Write the launch notes.',
+    constraints: null,
+    deliverable: null,
+    criteria: [],
+    context: [],
+    scope: { items: [{ kind: 'brand', id: BR, name: 'Harbor' }] },
+    effective_scope: { items: [{ kind: 'brand', id: BR, name: 'Harbor' }] },
+    assigned_by: { id: MEM, name: 'Ada' },
+    assigned_at: '2026-10-20T00:00:00Z',
+    withdrawn_at: null,
+    execution: LIVE,
+    version: 0,
+  };
+  const assignments = () =>
+    json(200, {
+      data: {
+        type: 'agent_assignments',
+        task: TSK,
+        items: [assigned],
+        capabilities: { assign: true },
+        execution: LIVE,
+      },
+    });
+  const run = (over: Record<string, unknown> = {}) => ({
+    id: RUN,
+    task: { id: TSK },
+    profile: { id: AGT, name: 'Docs agent', kind: 'external' },
+    state: 'running',
+    waiting: null,
+    paused_by: null,
+    review: null,
+    attempt: 1,
+    failure: null,
+    waiting_reasons: [],
+    result: null,
+    limits: { max_tool_calls: 50 },
+    usage: { tool_calls: 2, artifacts: 0, output_bytes: 0, deadline_at: '2026-10-21T01:00:00Z' },
+    costs: { measured: null, reported: null },
+    artifacts: [],
+    tool_calls: [
+      {
+        sequence: 2,
+        tool: 'pm.tasks.update',
+        version: '1',
+        tool_class: 'update_records',
+        decision: 'approval_required',
+        code: 'approval_required',
+        duration_ms: 1,
+        at: '2026-10-21T00:00:02Z',
+      },
+      {
+        sequence: 1,
+        tool: 'pm.tasks.get',
+        version: '1',
+        tool_class: 'read_records',
+        decision: 'executed',
+        code: null,
+        duration_ms: 3,
+        at: '2026-10-21T00:00:01Z',
+      },
+    ],
+    scope: { items: [] },
+    capabilities: { pause: true, resume: false, cancel: true, retry: false, accept: false },
+    created_at: '2026-10-21T00:00:00Z',
+    ended_at: null,
+    version: 1,
+    ...over,
+  });
+  const runs = (items: unknown[]) => json(200, { data: { type: 'agent_runs', task: TSK, items } });
+  const never = () => new Promise<Response>(() => undefined);
+
+  it('starts a run only from its preview: scope, tools that need approval, limits, and the measured AI cost confirmed for an internal agent', async () => {
+    let started = false;
+    const calls = serve({
+      [`GET /tasks/${TSK}/agents`]: assignments,
+      'GET /agents': () => json(200, { data: [], capabilities: { create: false } }),
+      [`GET /tasks/${TSK}/agent-runs`]: () => runs(started ? [run({ state: 'queued' })] : []),
+      [`GET /tasks/${TSK}/agent-run-preview`]: () =>
+        json(200, {
+          data: {
+            type: 'agent_run_preview',
+            profile: { id: AGT, name: 'Docs agent', kind: 'internal' },
+            scope: { items: [{ kind: 'brand', id: BR, name: 'Harbor' }] },
+            tools: [
+              {
+                name: 'pm.tasks.get',
+                version: '1',
+                tool_class: 'read_records',
+                approval_class: 'none',
+                mode: 'runs',
+              },
+              {
+                name: 'pm.tasks.update',
+                version: '1',
+                tool_class: 'update_records',
+                approval_class: 'review_required',
+                mode: 'approval_required',
+              },
+            ],
+            limits: { max_runtime_minutes: 30, max_tool_calls: 50, max_artifacts: 5 },
+            costs: {
+              measured: 'Model usage is measured by the AI gateway within its budget.',
+              reported: null,
+            },
+            refusals: [],
+            can_start: true,
+          },
+        }),
+      [`POST /tasks/${TSK}/agents/${AGT}:run`]: () => {
+        started = true;
+        return json(201, { data: { type: 'agent_run', run: run({ state: 'queued' }) } });
+      },
+      [`GET /agent-runs/${RUN}/events`]: () => never(),
+    });
+    shell(<TaskAgentSection ws={WS} task={TSK} />);
+    expect(await screen.findByText('No runs yet.')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Run Docs agent' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Run Docs agent?' });
+    const preview = await within(dialog).findByRole('region', { name: 'Run preview' });
+    expect(within(preview).getByText('Harbor')).toBeTruthy();
+    expect(within(preview).getByText(/runs \(read only\)/)).toBeTruthy();
+    expect(
+      within(preview).getByText(/will ask for approval, which is not available yet/),
+    ).toBeTruthy();
+    expect(within(preview).getByText(/measured by the AI gateway/)).toBeTruthy();
+    expect(within(preview).getByText('Longest run (minutes)')).toBeTruthy();
+    const go = within(dialog).getByRole('button', { name: 'Start run' }) as HTMLButtonElement;
+    // An internal agent's AI usage is confirmed before anything starts.
+    expect(go.disabled).toBe(true);
+    fireEvent.click(within(dialog).getByLabelText(/may use this workspace’s AI/));
+    expect(go.disabled).toBe(false);
+    await act(async () => fireEvent.click(go));
+    const post = calls.find((c) => c.path.endsWith(':run'))!;
+    expect(post.body).toEqual({ confirm: true });
+    expect(post.key).toMatch(/^web-/);
+    const list = await screen.findByRole('list', { name: 'Agent runs' });
+    expect(within(list).getByText('Queued')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Docs agent is running' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+  });
+
+  it('a refused preview names why and cannot start', async () => {
+    serve({
+      [`GET /tasks/${TSK}/agents`]: assignments,
+      'GET /agents': () => json(200, { data: [], capabilities: { create: false } }),
+      [`GET /tasks/${TSK}/agent-runs`]: () => runs([]),
+      [`GET /tasks/${TSK}/agent-run-preview`]: () =>
+        json(200, {
+          data: {
+            type: 'agent_run_preview',
+            profile: { id: AGT, name: 'Docs agent', kind: 'external' },
+            scope: { items: [] },
+            tools: [],
+            limits: {},
+            costs: {
+              measured: null,
+              reported:
+                'Any cost is reported by Docs agent and shown as reported, never as measured.',
+            },
+            refusals: [
+              {
+                pointer: '/',
+                code: 'emergency_stop',
+                message: 'Agent work is stopped for this workspace.',
+              },
+            ],
+            can_start: false,
+          },
+        }),
+    });
+    shell(<TaskAgentSection ws={WS} task={TSK} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Run Docs agent' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Run Docs agent?' });
+    expect(
+      await within(dialog).findByText('Agent work is stopped for this workspace.'),
+    ).toBeTruthy();
+    expect(within(dialog).getByText(/reported by Docs agent/)).toBeTruthy();
+    expect(
+      (within(dialog).getByRole('button', { name: 'Start run' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it('a ready run is a draft for review: a neutral state, agent notes labelled as notes, reported cost labelled, a draft artifact, and no accept control', async () => {
+    let polls = 0;
+    serve({
+      [`GET /tasks/${TSK}/agents`]: assignments,
+      'GET /agents': () => json(200, { data: [], capabilities: { create: false } }),
+      [`GET /tasks/${TSK}/agent-runs`]: () =>
+        runs([
+          run({
+            state: 'ready_for_review',
+            review: { required: true, owner: '8D' },
+            result: { status: 'completed', summary: 'Notes drafted. Everything is done!' },
+            costs: {
+              measured: null,
+              reported: { micros: 1500, currency: 'USD', label: 'reported by Docs agent' },
+            },
+            artifacts: [
+              {
+                key: 'notes',
+                version: 1,
+                title: 'Launch notes',
+                media_type: 'text/markdown',
+                byte_size: 20,
+                sha256: 'a'.repeat(64),
+                producer: 'external',
+                created_at: '2026-10-21T00:00:03Z',
+              },
+            ],
+            capabilities: {
+              pause: false,
+              resume: false,
+              cancel: false,
+              retry: false,
+              accept: false,
+            },
+            ended_at: '2026-10-21T00:00:04Z',
+          }),
+        ]),
+      [`GET /agent-runs/${RUN}/events`]: () => {
+        polls += 1;
+        return json(200, {
+          data: {
+            type: 'agent_run_events',
+            events:
+              polls === 1
+                ? [
+                    {
+                      seq: 1,
+                      kind: 'state',
+                      source: 'system',
+                      verified: true,
+                      text: 'Queued.',
+                      data: {},
+                      at: '2026-10-21T00:00:00Z',
+                    },
+                    {
+                      seq: 2,
+                      kind: 'commentary',
+                      source: 'agent',
+                      verified: false,
+                      text: 'Done! Everything is complete.',
+                      data: {},
+                      at: '2026-10-21T00:00:01Z',
+                    },
+                  ]
+                : [],
+            state: 'ready_for_review',
+            waiting: null,
+            cursor: 2,
+            ended: true,
+          },
+        });
+      },
+      [`GET /agent-runs/${RUN}/artifacts/notes`]: () =>
+        json(200, {
+          data: {
+            type: 'agent_artifact',
+            run: RUN,
+            key: 'notes',
+            draft: true,
+            versions: [
+              {
+                version: 1,
+                title: 'Launch notes',
+                media_type: 'text/markdown',
+                content: '# Launch notes',
+                byte_size: 14,
+                sha256: 'a'.repeat(64),
+                producer: 'external',
+                created_at: '2026-10-21T00:00:03Z',
+              },
+            ],
+          },
+        }),
+    });
+    shell(<TaskAgentSection ws={WS} task={TSK} />);
+    const list = await screen.findByRole('list', { name: 'Agent runs' });
+    const chip = within(list).getByText('Ready for review');
+    expect(chip.className).toContain('au-chip-review');
+    expect(chip.className).not.toMatch(/succeeded|active/);
+    fireEvent.click(within(list).getByRole('button', { name: 'Details' }));
+    const detail = await screen.findByRole('region', { name: 'Run of Docs agent' });
+    expect(within(detail).getByText(/A person reviews it before it counts/)).toBeTruthy();
+    expect(within(detail).getByText('Agent’s summary (not verified)')).toBeTruthy();
+    expect(within(detail).getByText(/reported by Docs agent, not measured/)).toBeTruthy();
+    const progress = await within(detail).findByRole('list', { name: 'Run progress' });
+    expect(within(progress).getByText(/agent’s note/).parentElement!.textContent).toContain(
+      'Done! Everything is complete.',
+    );
+    expect(within(detail).queryByRole('button', { name: /accept|approve|mark done/i })).toBeNull();
+    expect(
+      within(detail).queryByRole('button', { name: /Pause|Resume|Retry|Cancel run/ }),
+    ).toBeNull();
+    fireEvent.click(within(detail).getByRole('button', { name: 'Launch notes' }));
+    const draft = await screen.findByRole('dialog', { name: 'Launch notes' });
+    expect(within(draft).getByText(/has not been accepted/)).toBeTruthy();
+    expect(within(draft).getByLabelText('Draft content').textContent).toBe('# Launch notes');
+    // The tool timeline names a write that waited for approval, never ran.
+    expect(within(detail).getByText(/pm.tasks.update needs approval \(not run\)/)).toBeTruthy();
+  });
+
+  it('a run paused by the emergency stop says so and resumes on its own; cancel asks first; progress reconnects after a dropped poll', async () => {
+    let polls = 0;
+    const calls = serve({
+      [`GET /tasks/${TSK}/agents`]: assignments,
+      'GET /agents': () => json(200, { data: [], capabilities: { create: false } }),
+      [`GET /tasks/${TSK}/agent-runs`]: () =>
+        runs([
+          run({
+            state: 'waiting',
+            waiting: 'paused',
+            paused_by: 'emergency_stop',
+            capabilities: { pause: false, resume: true, cancel: true, retry: false, accept: false },
+          }),
+        ]),
+      [`GET /agent-runs/${RUN}/events`]: () => {
+        polls += 1;
+        if (polls === 1)
+          return json(503, {
+            error: { code: 'dependency_unavailable', status: 503, message: 'Unavailable' },
+          });
+        if (polls === 2)
+          return json(200, {
+            data: {
+              type: 'agent_run_events',
+              events: [
+                {
+                  seq: 1,
+                  kind: 'stop',
+                  source: 'system',
+                  verified: true,
+                  text: 'Paused by the emergency stop.',
+                  data: {},
+                  at: '2026-10-21T00:00:00Z',
+                },
+              ],
+              state: 'waiting',
+              waiting: 'paused',
+              cursor: 1,
+              ended: false,
+            },
+          });
+        return never();
+      },
+      [`POST /agent-runs/${RUN}:resume`]: () =>
+        json(200, { data: { type: 'agent_run', run: run() } }),
+      [`POST /agent-runs/${RUN}:cancel`]: () =>
+        json(200, {
+          data: {
+            type: 'agent_run',
+            run: run({
+              state: 'cancelled',
+              failure: { terminal_reason: 'cancelled', code: null, liability: null },
+              capabilities: {
+                pause: false,
+                resume: false,
+                cancel: false,
+                retry: false,
+                accept: false,
+              },
+              ended_at: '2026-10-21T00:01:00Z',
+            }),
+          },
+        }),
+    });
+    shell(<TaskAgentSection ws={WS} task={TSK} />);
+    const list = await screen.findByRole('list', { name: 'Agent runs' });
+    fireEvent.click(within(list).getByRole('button', { name: 'Details' }));
+    const detail = await screen.findByRole('region', { name: 'Run of Docs agent' });
+    expect(within(detail).getByText(/Paused by the workspace emergency stop/)).toBeTruthy();
+    expect(await within(detail).findByText('Reconnecting to progress…')).toBeTruthy();
+    expect(
+      await within(detail).findByText('Paused by the emergency stop.', {}, { timeout: 4000 }),
+    ).toBeTruthy();
+    expect(within(detail).queryByText('Reconnecting to progress…')).toBeNull();
+    await act(async () => fireEvent.click(within(detail).getByRole('button', { name: 'Resume' })));
+    expect(calls.find((c) => c.path.endsWith(':resume'))!.key).toMatch(/^web-/);
+    expect(await within(list).findByText('Running')).toBeTruthy();
+    fireEvent.click(within(detail).getByRole('button', { name: 'Cancel run' }));
+    expect(calls.some((c) => c.path.endsWith(':cancel'))).toBe(false);
+    const confirm = await screen.findByRole('alertdialog', { name: 'Cancel this run?' });
+    await act(async () =>
+      fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel run' })),
+    );
+    expect(calls.filter((c) => c.path.endsWith(':cancel'))).toHaveLength(1);
+    expect(await within(list).findByText('Cancelled')).toBeTruthy();
+  }, 10_000);
+
+  it('health shows run counts; an owner stops all agent work only after confirming, then may allow agents again', async () => {
+    let stopped = false;
+    const calls = serve({
+      'GET /agents': () => json(200, { data: [], capabilities: { create: false } }),
+      'GET /agent-templates': () => json(200, { data: { type: 'agent_templates', data: [] } }),
+      'GET /agent-health': () =>
+        json(200, {
+          data: {
+            type: 'agent_health',
+            window_days: 30,
+            runs: {
+              queued: 0,
+              running: 2,
+              waiting: 1,
+              failed: 0,
+              cancelled: 0,
+              ready_for_review: 3,
+            },
+            emergency_stop: {
+              stopped,
+              since: stopped ? '2026-10-21T00:00:00Z' : null,
+              epoch: stopped ? 1 : 0,
+              can_trigger: true,
+            },
+          },
+        }),
+      'POST /agent-emergency-stop': () => {
+        stopped = true;
+        return json(200, {
+          data: {
+            type: 'agent_emergency_stop',
+            stopped: true,
+            since: '2026-10-21T00:00:00Z',
+            epoch: 1,
+            report: { paused: 3, finishing: 0, already: 0, not_stoppable: 0 },
+          },
+        });
+      },
+      'POST /agent-emergency-stop/restart': () => {
+        stopped = false;
+        return json(200, {
+          data: { type: 'agent_emergency_stop', stopped: false, since: null, epoch: 2 },
+        });
+      },
+    });
+    shell(<AgentsPage ws={WS} />);
+    const card = await screen.findByRole('region', { name: 'Agent runs and emergency stop' });
+    expect(await within(card).findByText('Agents may run in this workspace.')).toBeTruthy();
+    expect(within(card).getByText('Ready for review').nextSibling!.textContent).toBe('3');
+    fireEvent.click(within(card).getByRole('button', { name: 'Stop all agent work' }));
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
+    const dialog = await screen.findByRole('alertdialog', { name: 'Stop all agent work?' });
+    fireEvent.change(within(dialog).getByLabelText('Reason (optional)'), {
+      target: { value: 'Runaway agent' },
+    });
+    await act(async () =>
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Stop all agent work' })),
+    );
+    const post = calls.find((c) => c.path.endsWith('/agent-emergency-stop'))!;
+    expect(post.body).toEqual({ reason: 'Runaway agent' });
+    expect(post.key).toMatch(/^web-/);
+    expect(await within(card).findByText('Agent work is stopped')).toBeTruthy();
+    expect(screen.getByText(/3 run\(s\) paused; 0 already paused/)).toBeTruthy();
+    await act(async () =>
+      fireEvent.click(within(card).getByRole('button', { name: 'Allow agents to run again' })),
+    );
+    expect(await screen.findByText(/Paused runs stay paused until each is resumed/)).toBeTruthy();
   });
 });

@@ -218,10 +218,9 @@ describe('Search, goals, metrics, dashboards, and reports as one permission-safe
         'work.time_in_status',
       ]),
     );
-    // 7A (AI usage) and 8A (automation outcomes) have since registered through the same port;
-    // the later sources remain listed.
+    // 7A (AI usage), 8A (automation outcomes), and 8C (agent outcomes) have since registered
+    // through the same port; the later sources remain listed.
     expect(cat.not_available.map((m: { key: string }) => m.key).sort()).toEqual([
-      'agent.rates',
       'quality.release',
     ]);
     expect(env.svc.metricCatalog(true).metrics.map((m: { key: string }) => m.key)).not.toContain(
@@ -269,7 +268,7 @@ describe('Search, goals, metrics, dashboards, and reports as one permission-safe
       env.svc.createDashboard(
         owner,
         ws,
-        { title: 'No', kind: 'owner', layout: { widgets: [widget('a', 'agent.rates')] } },
+        { title: 'No', kind: 'owner', layout: { widgets: [widget('a', 'quality.release')] } },
         mutation(),
       ),
     ).rejects.toMatchObject({

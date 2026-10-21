@@ -73,7 +73,7 @@ describe('agents (8B): profiles, revisions, grants, templates', () => {
           'pm.deliverables.draft_version',
           'pm.tasks.create_subtask',
         ]).toContain(tool.name);
-      expect(a.execution).toMatchObject({ available: false, owner: '8C' });
+      expect(a.execution).toMatchObject({ available: true, owner: '8C' });
       // A template cannot be turned on until a person names its scope.
       await expect(env.svc.activateAgentProfile(w.owner, w.ws, a.id, mutation())).rejects.toEqual(
         issueOf('configuration_incomplete'),

@@ -1,6 +1,6 @@
 # ADR-0047: Agent profiles, connectors, and scoped task assignments (Phase 8B)
 
-Status: **proposed** (implemented; candidate for architect review; not self-accepted).
+Status: **accepted** (engineering scope: the architect accepted Phase 8B with corrective review 01 (R1 hidden cardinality omitted, R2 shared assignment eligibility and current ceilings) at head `e51b3f1` (`e51b3f19ecf215e296d08c12c14649a4e1b2565d`), CI run 39502523692 attempt 1, draft PR #45: four required shards passed; 980 unit/component, 1150 integration, 6 process smoke, 291 browser (122 desktop, 73 tablet, 96 mobile); recorded here by the 8C brief; not production approval: live connectors stay blocked (DQ-28), derived authority and readiness blocks are not stored suspensions, and every production and manual boundary below stays open).
 Date: 2026-10-20. Brief P8-W2 (Phase 8B). Base: accepted Phase 8A head `802c026` (`802c0265ca2a40e50fc5fea35b866c895c00fe10`, CI run 39401581014 attempt 1; the acceptance is recorded in ADR-0046). Migrations 0001–0063 unchanged; this adds `0064_agent_profiles_connectors`.
 
 ## Context

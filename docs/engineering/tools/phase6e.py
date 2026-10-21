@@ -25,7 +25,7 @@ def _ai_head(factory):
     return "return new AiGatewayService(" in factory or (
         "return new AutomationService(" in factory and os.path.isfile(auto)
         and "export class AutomationService extends AiGatewayService" in read(auto)) or (
-        "return new AgentService(" in factory and os.path.isfile(auto)
+        ("return new AgentService(" in factory or "return new AgentRunService(" in factory) and os.path.isfile(auto)
         and "export class AutomationService extends AiGatewayService" in read(auto)
         and os.path.isfile(P("packages/work/src/agents/service.ts"))
         and "export class AgentService extends AutomationService" in read(P("packages/work/src/agents/service.ts")))

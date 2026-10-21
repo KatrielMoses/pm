@@ -1,7 +1,36 @@
 {
   "schema_version": 1,
   "phase": "8B",
-  "status": "candidate",
+  "status": "accepted",
+  "accepted": {
+    "head": "e51b3f19ecf215e296d08c12c14649a4e1b2565d",
+    "ci_run": "39502523692",
+    "attempt": 1,
+    "pr": "#45",
+    "shards": [
+      "core",
+      "e2e-desktop",
+      "e2e-tablet",
+      "e2e-mobile"
+    ],
+    "totals": {
+      "unit_component": 980,
+      "integration": 1150,
+      "process_smoke": 6,
+      "browser": 291,
+      "browser_by_project": {
+        "desktop": 122,
+        "tablet": 73,
+        "mobile": 96
+      }
+    },
+    "corrective_reviews_closed": [
+      "R1",
+      "R2"
+    ],
+    "recorded_by": "the Phase 8C brief",
+    "boundaries": "Engineering acceptance only: live connectors stay blocked (DQ-28); derived authority and readiness blocks are not stored suspensions; no production approval; every manual boundary stays open; the 0063 no-pre-correction-worker restriction and P8-W0 uncertainty guarantees stand."
+  },
   "adr": "0047",
   "base": {
     "head": "802c0265ca2a40e50fc5fea35b866c895c00fe10",

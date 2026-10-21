@@ -804,7 +804,14 @@ export class WorkerRuntime {
             waitingReason: outcome.reason,
             ...(outcome.result ? { outcomeDetail: outcome.result } : {}),
           });
-          await continueJob(tenantTx(tx), fenced.id, outcome.resumeAt);
+          // A timed wait continues on its own; a wait for a person never does (8C).
+          if (outcome.resumeAt) await continueJob(tenantTx(tx), fenced.id, outcome.resumeAt);
+          return 'waiting';
+        }
+        if (outcome.state === 'paused') {
+          if (!op) throw new JobContractError('paused requires an operation');
+          await this.#endAttempt(tx, attemptId, 'waiting');
+          await transition(tx, 'paused', outcome.result ? { outcomeDetail: outcome.result } : {});
           return 'waiting';
         }
         // A skipped operation's attempt itself completed (attempts have no skipped state).

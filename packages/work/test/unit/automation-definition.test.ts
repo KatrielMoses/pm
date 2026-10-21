@@ -265,7 +265,7 @@ describe('automation definitions (8A compiler)', () => {
     expect(codes(fb([]))).toContain('/steps/0/fallback/on:invalid_option');
   });
 
-  it('AT-584 future triggers and agent actions compile as typed, unavailable boundaries', () => {
+  it('AT-584 future triggers compile as typed, unavailable boundaries (agent workflows became real in 8C)', () => {
     const t = compileDefinition(base({ trigger: { kind: 'test.result', record: 'task' } }), LIMITS);
     expect(t.unavailable).toEqual([
       { pointer: '/trigger/kind', code: 'trigger_unavailable', owner: '9B' },
@@ -276,11 +276,9 @@ describe('automation definitions (8A compiler)', () => {
       }),
       LIMITS,
     );
-    expect(a.unavailable).toEqual([
-      { pointer: '/steps/0/action', code: 'action_unavailable', owner: '8C' },
-    ]);
-    expect(TRIGGERS['agent.result'].status).toBe('unavailable');
-    expect(ACTION_MATRIX['agent.invoke'].status).toBe('unavailable');
+    expect(a.unavailable).toEqual([]);
+    expect(TRIGGERS['agent.result'].status).toBe('available');
+    expect(ACTION_MATRIX['agent.invoke'].status).toBe('supported');
   });
 
   it('AT-585 outbound steps declare an exact destination and structural field set', () => {

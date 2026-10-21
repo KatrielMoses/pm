@@ -114,7 +114,7 @@ def check_gateway():
     agents = P("packages/work/src/agents/service.ts")
     if "return new AiGatewayService(" not in factory and not (
             extended and ("return new AutomationService(" in factory or (
-                "return new AgentService(" in factory and os.path.isfile(agents)
+                ("return new AgentService(" in factory or "return new AgentRunService(" in factory) and os.path.isfile(agents)
                 and "export class AgentService extends AutomationService" in read(agents)))):
         errs.append("createWorkService must return AiGatewayService (or its 8A extension)")
     # Provider output is data: the gateway never writes business records.
@@ -207,6 +207,7 @@ def check_migration():
         "0062": ("0062_automation_engine.up.sql", "phase8a.py"),
         "0063": ("0063_automation_checkpoint_refs.up.sql", "phase8a.py"),
         "0064": ("0064_agent_profiles_connectors.up.sql", "phase8b.py"),
+        "0065": ("0065_agent_runs.up.sql", "phase8c.py"),
     }
     for k in sorted(k for k in by if k > "0054"):
         name, validator = later_owned.get(k, (None, None))

@@ -17,7 +17,7 @@ import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
 import { automationOwnerHook } from './automation/ownership.ts';
-import { AgentService } from './agents/service.ts';
+import { AgentRunService } from './agents/runs.ts';
 import { agentProfileOwnerHook } from './agents/lifecycle.ts';
 import { aiHistoryOwnerHook } from './ai/lifecycle.ts';
 import { MessagesProvider, type AiProvider } from './ai/provider.ts';
@@ -64,7 +64,7 @@ export function createWorkService(deps: {
   calendarProvider?: CalendarProvider | null;
   /** Overrides the configured AI transport (tests inject a fetch-wrapped adapter). */
   aiProvider?: AiProvider | null;
-}): AgentService {
+}): AgentRunService {
   const { config } = deps;
   if (!config.identity.signingKey && !deps.ephemeralSigningKey)
     throw new Error('AUTH_SIGNING_KEY is required');
@@ -134,7 +134,7 @@ export function createWorkService(deps: {
   // 8B: agent connectors are tested only against the synthetic local fixture (local and test);
   // live connectors need an approved secret store and credentials (DQ-28).
   const agentTransport = work.agentConnectorTransport ?? 'none';
-  return new AgentService({
+  return new AgentRunService({
     agents: {
       transport:
         agentTransport === 'fixture' && (config.env === 'local' || config.env === 'test')

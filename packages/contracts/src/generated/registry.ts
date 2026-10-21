@@ -273,6 +273,13 @@ export const TELEMETRY_SIGNALS = [
     ]
   },
   {
+    "name": "agent.runs",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
     "name": "agent.tool_calls",
     "type": "counter",
     "labels": [
@@ -2202,10 +2209,24 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
+    "type": "agents.agent_run.failed",
+    "schemaVersion": 1,
+    "aggregateEntity": "agents.agent_run",
+    "fields": [
+      "run_id",
+      "task_id",
+      "terminal_reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
     "type": "agents.agent_run.output_returned",
     "schemaVersion": 1,
     "aggregateEntity": "agents.agent_run",
     "fields": [
+      "run_id",
+      "task_id",
+      "artifact_count",
       "deliverable_version_id"
     ],
     "maxClass": "C1"
@@ -4270,7 +4291,15 @@ export const PARAMETER_NAMES = [
   "AGENT_CONNECTOR_TIMEOUT_MS",
   "AGENT_CONNECTOR_RESPONSE_MAX_BYTES",
   "AGENT_CONNECTOR_TESTS_PER_HOUR",
-  "AGENT_CONNECTOR_TRANSPORT"
+  "AGENT_CONNECTOR_TRANSPORT",
+  "AGENT_RUNS_ACTIVE_MAX",
+  "AGENT_RUN_RETRIES_MAX",
+  "AGENT_RUN_EVENTS_MAX",
+  "AGENT_RUN_EVENT_TEXT_MAX_CHARS",
+  "AGENT_ARTIFACT_MAX_BYTES",
+  "AGENT_RUN_OUTPUT_MAX_BYTES",
+  "AGENT_RUN_CREDENTIAL_TTL_SECONDS",
+  "AGENT_RUN_POLL_WAIT_SECONDS"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

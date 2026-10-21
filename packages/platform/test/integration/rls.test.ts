@@ -255,6 +255,14 @@ const PHASE_1C_TENANT_TABLES = [
   'agents.agent_connector_test',
   'agents.agent_assignment',
   'agents.agent_assignment_revision',
+  // Phase 8C agent runs, their progress events, tool calls, draft artifacts, run-bound
+  // credentials, and the workspace emergency stop.
+  'agents.agent_run',
+  'agents.agent_run_event',
+  'agents.agent_tool_call',
+  'agents.agent_artifact',
+  'agents.agent_run_credential',
+  'agents.emergency_stop',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */

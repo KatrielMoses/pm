@@ -171,6 +171,16 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-161 | staleness | Concurrent creations or assignments exceed the workspace profile limit, the per-task limit, or the one-active-assignment rule, or readiness claims a model or a connector that is not available now (an invented run). | I-01, I-13 | AT-609, AT-610, AT-625, AT-628, AT-630, AT-631, AT-632 |
 | T-162 | inference | A task reader learns how many brands, projects, records, or integrations an assignment or profile holds that they cannot open, from a hidden count, total, flag, or placeholder in the scope view, preview, or panel, and so tells otherwise identical assignments apart. | I-07, I-08 | AT-634, AT-635, AT-639, AT-640, AT-642 |
 | T-163 | revocation | An assigner who lost agent.assign on the task (a role or grant downgrade that keeps read access, or a workspace policy change), or a task that became archived or trashed, leaves a stored assignment shown as assigned and handed to execution as eligible, because readiness checks readability instead of current assignment authority. | I-11, I-12, I-14 | AT-636, AT-637, AT-638, AT-639, AT-641, AT-642 |
+| T-164 | agent_scope | A run reads or acts with authority wider than it was admitted with: the current (edited) profile grants, a widened assignment, a later grant to the assigner, or tools that were not pinned at admission, so a change in flight broadens a running agent. | I-11, I-14 | AT-643 |
+| T-165 | revocation | Authority lost between preview, admission, credential issue, checkpoint preparation, and the actual dispatch (an assigner downgrade, withdrawal or departure, an archived or trashed task, a lost scope, or the emergency stop) still sends the brief or task content, or a late callback is accepted afterwards. | I-12, I-14 | AT-645, AT-646, AT-648, AT-649, AT-667 |
+| T-166 | spoofing | A run-bound credential is used outside its run: on another run, another workspace, people's routes or controls, other MCP methods or tools, after revocation or expiry, or it is stored, logged, or checkpointed in the clear. | I-01, I-03, I-14, I-16 | AT-645, AT-649, AT-655, AT-659, AT-661, AT-662 |
+| T-167 | agent_scope | An agent claims completion or acceptance through commentary, progress, an acknowledgment, or its own result, or a ready-for-review run is presented as accepted or changes the task's status or deliverable. | I-15 | AT-643, AT-644, AT-661, AT-664 |
+| T-168 | agent_scope | A mutating or high-risk tool request (update, create, code, tests, or an unregistered tool) executes during a run before a per-instance human approval exists (8D), or a refused request still changes a record. | I-14, I-15 | AT-643, AT-662 |
+| T-169 | staleness | A crash, lease expiry, redelivery, duplicate key, or overlapping result causes a second dispatch, a second model turn, a double settlement, or a dispatch whose outcome is unknown to be sent again automatically. | I-12, I-14 | AT-646, AT-650, AT-653, AT-654, AT-655, AT-656, AT-657 |
+| T-170 | inference | Run views, progress streams, artifacts, health counts, metrics, briefings, or notifications reveal a run, its scope, or its output to a person who cannot read the task, or count runs across workspaces. | I-03, I-07, I-08 | AT-658, AT-659, AT-660, AT-666 |
+| T-171 | agent_scope | Budgets and limits are bypassed: concurrent admissions exceed the open-run limit, tool calls, artifacts, output bytes, events, retries, or the deadline are exceeded, or an agent's reported cost is shown as measured. | I-01, I-14 | AT-644, AT-647, AT-652, AT-667 |
+| T-172 | revocation | The emergency stop leaves a run working or a credential valid, or restart silently resumes paused runs without re-deciding each run's authority. | I-12, I-17 | AT-651, AT-663, AT-665 |
+| T-173 | guest_escalation | A guest, share-only person, read-only member, token without agents:execute, or an automation owner without agent.assign starts or controls a run, or a token reads health or triggers the stop. | I-01, I-11, I-14 | AT-657, AT-663, AT-666 |
 
 ## Test matrix
 
@@ -818,6 +828,31 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-640 | T-162 | guest | HTTP: a share-only reader compares assignments with and without a hidden project — shared task's context | `record.read` | api | **deny** | omitted | api, count_facet |
 | AT-641 | T-163 | guest | HTTP: every reader sees the downgraded assigner's assignment blocked; the assigner cannot assign — assigner lost access mid-run | `agent.assign` | api | **deny** | forbidden | error_message |
 | AT-642 | T-163, T-162 | member | Browser: the task panel after the assigner is downgraded to view — assigner lost access mid-run | `agent.assign` | ui_record | **deny** | ok_filtered | ui_record |
+| AT-643 | T-164, T-167, T-168 | owner | External run end to end: admission, dispatch with a run-bound credential, scoped read, refused write, progress, draft artifact, ready for review; task unchanged — task | `agent.run_control` | api | **allow** | ok | — |
+| AT-644 | T-167, T-171 | owner | Internal run through the AI gateway under the run principal; AI not configured is a refusal — task | `agent.run_control` | api | **allow** | ok | — |
+| AT-645 | T-165, T-166 | owner | Pause revokes the credential at once; resume re-decides and re-dispatches with a new credential — task | `agent.run_control` | api | **allow** | ok | — |
+| AT-646 | T-165, T-169 | owner | Cancel after dispatch: terminal, reports what may have left, late callbacks refused — task | `agent.run_control` | api | **allow** | ok | — |
+| AT-647 | T-171 | owner | Retry links a new operation, keeps counters and deadline, stops at the retry limit — task | `agent.run_control` | api | **allow** | ok | — |
+| AT-648 | T-165 | member | Assigner downgraded after admission and before dispatch — assigner lost access mid-run | `agent.run_control` | api | **deny** | approval_required | webhook_payload |
+| AT-649 | T-165, T-166 | agent_run | Authority lost after dispatch; an archived task — assigner lost access mid-run | `record.read` | api | **deny** | not_found | error_message |
+| AT-650 | T-169 | system_job | An unknown dispatch outcome — task | `agent.run_control` | api | **deny** | conflict_filtered | — |
+| AT-651 | T-172 | owner | Emergency stop with open runs; restart — workspace | `emergency_stop.trigger` | api | **allow** | ok | — |
+| AT-652 | T-171 | agent_run | Tool call, artifact, and concurrent open-run limits — task | `agent.run_control` | api | **deny** | validation_generic | error_message |
+| AT-653 | T-169 | agent_run | Replayed start key; duplicate event, tool, and result keys — task | `agent.run_control` | api | **allow** | ok | — |
+| AT-654 | T-169 | system_job | Worker dies after claiming the dispatch — task | `agent.run_control` | api | **deny** | conflict_filtered | — |
+| AT-655 | T-169, T-166 | system_job | Worker dies after sending; owner confirms the send; overlapping results — task | `agent.run_control` | api | **allow** | ok | — |
+| AT-656 | T-169 | system_job | Redelivered internal run job — task | `agent.run_control` | ai_context | **deny** | omitted | ai_answer |
+| AT-657 | T-173, T-169 | automation | Automation invokes an agent and reacts to its result; loop — task | `agent.assign` | api | **allow** | ok | — |
+| AT-658 | T-170 | member | Run outcomes in metrics, briefings, and notifications per viewer — workspace | `record.read` | report | **allow** | ok_filtered | notification_inapp, digest, count_facet |
+| AT-659 | T-166, T-170 | agent_run | Credential against another run, a guessed id, another workspace, people's controls — cross-workspace | `record.read` | api | **deny** | not_found | error_message |
+| AT-660 | T-170 | system_job | Task purge with runs — task | `record.read` | api | **allow** | ok | — |
+| AT-661 | T-166, T-167 | agent_run | Over HTTP: callbacks and long poll with the run credential; other routes — task | `record.read` | api | **deny** | not_found | error_message |
+| AT-662 | T-166, T-168 | agent_run | MCP kind: run tools through the MCP endpoint; other methods and tools — task | `record.read` | api | **deny** | not_found | error_message |
+| AT-663 | T-173, T-172 | api_token_personal | Controls need agents:execute; tokens never stop or read health — workspace | `emergency_stop.trigger` | api | **deny** | not_found | error_message |
+| AT-664 | T-167 | owner | Browser: preview, start, progress, draft artifact ready for review; no accept control — task | `agent.run_control` | ui_record | **allow** | ok | — |
+| AT-665 | T-172 | owner | Browser: pause, emergency stop, allow again, resume, cancel — workspace | `emergency_stop.trigger` | ui_record | **allow** | ok | — |
+| AT-666 | T-170, T-173 | guest | Every role, guest, and share across three workspaces — shared record | `agent.run_control` | api | **deny** | forbidden | ui_record, error_message |
+| AT-667 | T-165, T-171 | member | Withdrawal mid-run; the deadline — task | `agent.assign` | api | **deny** | not_found | error_message |
 
 ## Response shapes
 

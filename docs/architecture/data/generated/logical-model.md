@@ -5252,7 +5252,7 @@ Immutable assignment brief and stored scope ceiling: goal, constraints, delivera
 <a id="entity-agent-run"></a>
 ### `agent_run`
 
-Operation detail of one agent execution for a task; returns artifacts; never completes the task.
+Durable state of one agent execution for a task: the pinned assignment and profile revisions, ceiling, tools, and limits; counters; and its platform operation (the one authority for state). Returns draft artifacts; never completes or accepts the task.
 
 | Property | Value |
 |---|---|
@@ -5260,19 +5260,62 @@ Operation detail of one agent execution for a task; returns artifacts; never com
 | Contained by | — |
 | Extends (1:1) | [`operation`](logical-model.md#entity-operation) |
 | Associations | [`task`](logical-model.md#entity-task), [`agent_profile`](logical-model.md#entity-agent-profile) |
-| Lifecycle / concurrency | `append-only` / `locked` |
+| Lifecycle / concurrency | `state-machine` / `locked` |
 | Retention / confidentiality | `R-EXEC` / `C2` |
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(task_id, agent_profile_id) where execution_state non-terminal` |
-| Key typed columns | `task_id`; `agent_profile_id`; `assignment_id`; `run_scope jsonb`; `limits jsonb`; `reported_cost_micros null`; `measured_cost_micros`; `deliverable_version_id null` |
+| Uniqueness | `(task_id, profile_id) where ended_at is null`; `(operation_id)`; `(current_operation_id)`; `(request_key)` |
+| Key typed columns | `task_id, profile_id, assignment_id, brand_id`; `assignment_revision_id, profile_revision_id, instructions_hash (pinned at admission)`; `kind (internal\|external); connector_id and connector_config_version (external) or model_key (internal)`; `initiator_kind (human\|automation), initiator_membership_id null, source_ref null (automation run)`; `assigner_membership_id, owner_membership_id`; `scope_brand_ids, scope_project_ids, scope_record_ids, scope_integration_ids (the pinned ceiling)`; `tools jsonb, limits jsonb (pinned)`; `operation_id, current_operation_id (a retry links a new operation), model_operation_id null`; `attempt_number, dispatch_generation, phase (start\|awaiting_model\|awaiting_agent\|finished)`; `tool_calls_used, artifacts_used, output_bytes_used, events_used, event_seq`; `measured_cost_micros null; reported_cost_micros null and reported_cost_currency null (OD-24, labelled reported)`; `pause_requested_at null, paused_by (human\|emergency_stop) null`; `result_status (completed\|failed) null, result_summary null, deadline_at, ended_at null`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | AGT-009, AGT-010, AGT-012, AGT-022, LA-008 |
+| Requirements | AGT-009, AGT-010, AGT-011, AGT-012, AGT-013, AGT-022, AGT-023, AGT-024, AGT-026, LA-008, LA-017, AUTO-007 |
+| Notes | Phase 8C (ADR-53): the display state (queued, running, waiting, failed, cancelled, ready_for_review) is derived from the current operation by one table and never stored; `accepted` is reserved for a real 8D decision. One open run per task and agent (partial unique index). Purged with its task. |
+
+<a id="entity-agent-run-event"></a>
+### `agent_run_event`
+
+Bounded progress of a run with a per-run sequence (the long-poll cursor): state changes, agent progress and commentary, tool calls, artifacts, results, refusals, late results, and stops. Commentary and progress are never completion.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`agent_run`](logical-model.md#entity-agent-run) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-EXEC` / `C2` |
+| Volume / export / search-AI | `very-high` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(run_id, seq)`; `(run_id, source_key)` |
+| Key typed columns | `run_id, operation_id`; `seq`; `kind (state\|progress\|commentary\|tool_call\|artifact\|result\|refusal\|late_result\|stop)`; `source (agent\|system\|human)`; `source_key null (agent idempotency)`; `text null (bounded), data jsonb (bounded)` |
+| Sensitive fields | — |
+| Requirements | AGT-010, AGT-011, LA-017 |
+| Notes | Phase 8C (ADR-53): agent-sourced events are labelled unverified notes; access is decided again on every long-poll check. |
+
+<a id="entity-agent-run-credential"></a>
+### `agent_run_credential`
+
+Run-bound credential of an external agent: one run, one operation, hash only; revocable at once.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`agent_run`](logical-model.md#entity-agent-run) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `state-machine` / `locked` |
+| Retention / confidentiality | `R-EXEC` / `C3` |
+| Volume / export / search-AI | `medium` / `never` / `no` |
+| Secrets / personal data | `no` / `no` |
+| Uniqueness | `(token_prefix)` |
+| Key typed columns | `run_id, operation_id`; `token_prefix (par_ + 8)`; `token_hash (SHA-256; the token itself is never stored or checkpointed)`; `expires_at (never past the run deadline)`; `stop_epoch`; `state (active\|revoked), revoked_reason null, revoked_at null` |
+| Sensitive fields | `token_hash` |
+| Requirements | AGT-012, AGT-024, AGT-025 |
+| Notes | Phase 8C (ADR-53): resolved by a definer function for the directory role; revoked on pause, waiting for a person, cancel, emergency stop, withdrawal, and end. It reaches only its own run's callbacks and run tools. |
 
 <a id="entity-agent-tool-call"></a>
 ### `agent_tool_call`
 
-One tool invocation: inputs/outputs (redacted), authorization result, duration, external effect link.
+One tool request of a run: the registered tool and version, its class, the decision (executed|approval_required|refused|unavailable|limit_reached) with a code, and the duration. Targets and results are not stored.
 
 | Property | Value |
 |---|---|
@@ -5284,15 +5327,16 @@ One tool invocation: inputs/outputs (redacted), authorization result, duration, 
 | Retention / confidentiality | `R-EXEC` / `C2` |
 | Volume / export / search-AI | `very-high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(attempt_id, sequence)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(run_id, sequence)`; `(run_id, source_key)` |
+| Key typed columns | `run_id, operation_id`; `sequence, source_key null`; `tool, tool_version, tool_class`; `decision, code null`; `duration_ms null` |
 | Sensitive fields | — |
 | Requirements | AGT-012, AGT-026 |
+| Notes | Phase 8C (ADR-53): only R0 reads with approval none execute; every other class is recorded as approval_required and changes nothing (8D owns approval). |
 
 <a id="entity-artifact"></a>
 ### `artifact`
 
-Output produced by a run (file, text, patch, link); becomes a deliverable only when returned as one.
+Draft output of a run (Markdown, plain text, or JSON), versioned by key and SHA-256 checked; draft evidence for review, never a deliverable acceptance.
 
 | Property | Value |
 |---|---|
@@ -5304,10 +5348,11 @@ Output produced by a run (file, text, patch, link); becomes a deliverable only w
 | Retention / confidentiality | `R-EXEC` / `C2` |
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(run_id, artifact_key, version_number)`; `(run_id, source_key)` |
+| Key typed columns | `stored as agents.agent_artifact`; `run_id, operation_id`; `artifact_key, version_number`; `title, media_type (text/markdown\|text/plain\|application/json)`; `content, byte_size, sha256`; `producer (internal\|external)` |
 | Sensitive fields | — |
 | Requirements | AGT-012, AGT-013 |
+| Notes | Phase 8C (ADR-53): immutable rows (a trigger refuses updates); bounded per version and per run; purged with the run. Promotion to a deliverable is 8D. |
 
 <a id="entity-action-approval"></a>
 ### `action_approval`
@@ -5332,7 +5377,7 @@ Approval gate for a classified agent action (external message, publish, spend, a
 <a id="entity-emergency-stop"></a>
 ### `emergency_stop`
 
-Workspace (or platform) stop switch for all agent execution; append-only toggles.
+Workspace stop switch for all agent execution: append-only stop and restart records with a monotonic epoch.
 
 | Property | Value |
 |---|---|
@@ -5344,10 +5389,11 @@ Workspace (or platform) stop switch for all agent execution; append-only toggles
 | Retention / confidentiality | `R-AUDIT` / `C1` |
 | Volume / export / search-AI | `low` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, epoch)` |
+| Key typed columns | `action (stop\|restart)`; `epoch (monotonic per workspace)`; `actor_membership_id`; `reason null`; `summary jsonb (paused, finishing, already, not_stoppable)` |
 | Sensitive fields | — |
 | Requirements | AGT-025 |
+| Notes | Phase 8C (ADR-53): a stop pauses every open run and revokes every run credential at once; restart leaves runs paused until each is resumed under current authority. Immutable rows. |
 
 ## Support and feedback (`support`, schema `support`)
 

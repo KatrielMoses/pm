@@ -1,0 +1,819 @@
+{
+  "schema_version": 1,
+  "phase": "8C",
+  "status": "candidate",
+  "adr": "0048",
+  "base": {
+    "head": "e51b3f19ecf215e296d08c12c14649a4e1b2565d",
+    "accepted_as": "Phase 8B with corrective review 01, CI run 39502523692 attempt 1"
+  },
+  "requirements": [
+    {
+      "id": "AGT-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Runs are queued, started, paused, resumed, cancelled, and retried as agent_run operations, each control decided against current authority and audited.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "async startAgentRun("
+        },
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "async controlAgentRun("
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-645 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-646 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-647 "
+        },
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-664 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "8D"
+      ],
+      "accepted_by": [
+        "adr:0048#D2"
+      ],
+      "note": "Queued, running, waiting (with its reason), failed, cancelled, and ready for review are derived from the operation by one table; accepted is reserved for a real 8D decision and never produced.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/run-states.ts",
+          "contains": "export const RUN_STATE_TABLE"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-643 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-650 "
+        },
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-664 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Bounded progress events with a per-run cursor, followed by a long poll that decides access on every check; agent progress and commentary are labelled notes and never complete a run.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "async agentRunEvents("
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-643 "
+        },
+        {
+          "file": "apps/api/test/integration/agents-runs-api.test.ts",
+          "contains": "'AT-661 "
+        },
+        {
+          "file": "apps/web/src/agents/runs.tsx",
+          "contains": "Reconnecting to progress…"
+        }
+      ]
+    },
+    {
+      "id": "AGT-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "The run pins its inputs (revisions, ceiling, tools, limits); tool calls, artifacts, events, errors, deadline and end time, measured gateway usage, and the agent's reported cost (labelled reported, OD-24) are stored.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "label: `reported by ${profile.name}`"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-643 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-644 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-652 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "8D"
+      ],
+      "accepted_by": [
+        "adr:0048#D10"
+      ],
+      "note": "Draft artifacts (Markdown, plain text, JSON; SHA-256 checked, versioned) are returned to the run on the originating task; promotion to a deliverable is 8D.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "async agentRunPostArtifact("
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-643 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-644 "
+        },
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-664 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-022",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "8D"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "No run, failed, partial, or finished, changes the task's status or deliverable; ready for review is never acceptance.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "review: s.state === 'ready_for_review' ? { required: true, owner: '8D' } : null,"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-643 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-646 "
+        },
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-664 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-023",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "One open run per task and agent; keyed steps and callbacks; an unknown dispatch waits for reconciliation and is never resent; a redelivered job starts no second model turn; results settle once.",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0065_agent_runs.up.sql",
+          "contains": "CREATE UNIQUE INDEX agent_run_open"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-650 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-653 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-recovery.test.ts",
+          "contains": "'AT-654 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-recovery.test.ts",
+          "contains": "'AT-655 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-recovery.test.ts",
+          "contains": "'AT-656 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-024",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Runtime deadline, tool calls, artifacts, output bytes, events, retries, and open runs per workspace are enforced with finite defaults and hard maximums; internal token and cost budgets are the 7A gateway's.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "agentRunsActiveMax"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-652 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-647 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-667 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-025",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "The workspace emergency stop pauses every open run and revokes every run credential at once; restart leaves runs paused until each is resumed.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "async triggerAgentEmergencyStop("
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-651 "
+        },
+        {
+          "file": "apps/api/test/integration/agents-runs-api.test.ts",
+          "contains": "'AT-663 "
+        },
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-665 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-026",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Every control, the stop, and restart are audited; tool calls and events are kept as run history.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "'agent.emergency_stopped'"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-645 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-651 "
+        }
+      ]
+    },
+    {
+      "id": "ADM-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8C",
+      "note": "Agent health (open and recent runs by state and the stop) for owners and administrators.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/runs.ts",
+          "contains": "async agentHealth("
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-651 "
+        },
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-665 "
+        }
+      ]
+    },
+    {
+      "id": "AUD-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8C",
+      "note": "Run history stays with its task and is purged with it (events, tool calls, artifacts, credentials).",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/lifecycle.ts",
+          "contains": "export async function purgeAgentRuns("
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-660 "
+        }
+      ]
+    },
+    {
+      "id": "AUTO-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8C",
+      "note": "Automations invoke agents through the one admission as their owner and react to agent results; the loop guard sees the causation.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/definition.ts",
+          "contains": "command: 'invokeAgentForAutomation',"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-657 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8C",
+      "note": "Briefings state real agent runs ready for review per viewer.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: 'agent_runs.ready',"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-658 "
+        }
+      ]
+    },
+    {
+      "id": "LA-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8C",
+      "note": "A founder delegates a task to one connected agent and gets a draft back for review.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-643 "
+        },
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-664 "
+        }
+      ]
+    },
+    {
+      "id": "LA-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8C",
+      "note": "Failed runs are shown and reported as failed, never as successful.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-646 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-658 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-667 "
+        }
+      ]
+    },
+    {
+      "id": "REL-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8C",
+      "note": "Agent failures notify the people involved (agent_failure).",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/fanout.ts",
+          "contains": "agent_failure"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-658 "
+        }
+      ]
+    },
+    {
+      "id": "RPT-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8C",
+      "note": "agent.rates reports agent run outcomes apart from automation rates through the 5D metric port.",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics-8c.ts",
+          "contains": "key: 'agent.rates'"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-658 "
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "A run is an operation",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D1 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-647 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "One state table, no stored state",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D2 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-643 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "Admission pins everything",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D3 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-653 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "Live authority everywhere",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D4 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-648 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Run-bound credentials",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D5 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-659 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "Only R0 reads execute",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D6 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-643 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "Internal agents through the gateway",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D7 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-644 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "External agents through the connector protocol",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D8 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-recovery.test.ts",
+          "contains": "'AT-655 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "Progress is notes, never completion",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D9 |"
+        },
+        {
+          "file": "apps/api/test/integration/agents-runs-api.test.ts",
+          "contains": "'AT-661 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "Results and artifacts are drafts",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D10 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs.test.ts",
+          "contains": "'AT-643 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "adr_row": "D11",
+      "title": "Controls decided now",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D11 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-645 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "adr_row": "D12",
+      "title": "Limits and costs",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D12 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-652 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D12 |"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "adr_row": "D13",
+      "title": "Emergency stop",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D13 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-651 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D13 |"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "adr_row": "D14",
+      "title": "Reporting through existing ports",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D14 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-658 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D14 |"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "adr_row": "D15",
+      "title": "Automations invoke agents",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D15 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-657 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D15 |"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "adr_row": "D16",
+      "title": "Withdrawal and purge",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D16 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-platform.test.ts",
+          "contains": "'AT-667 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D16 |"
+        }
+      ]
+    },
+    {
+      "id": "D17",
+      "adr_row": "D17",
+      "title": "Platform extension",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D17 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-runs-control.test.ts",
+          "contains": "'AT-645 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0048-durable-agent-runs.md",
+          "contains": "| D17 |"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "8D",
+      "statement": "Per-instance approval, review, acceptance, and deliverable promotion; every non-R0 tool waits as approval_required; no accept control exists."
+    },
+    {
+      "id": "10A",
+      "statement": "Technical limits only; no plan, price, or entitlement."
+    },
+    {
+      "id": "PRODUCTION-CONNECTORS",
+      "statement": "Live connectors are blocked until an approved secret store and credentials exist (DQ-28); dispatch is exercised only against the synthetic local fixture, refused when deployed."
+    },
+    {
+      "id": "PRODUCTION-AI",
+      "statement": "Unconfigured; internal runs use the deterministic fixture provider. No live or paid call."
+    },
+    {
+      "id": "MANUAL",
+      "statement": "No screen-reader, real-device, or live-agent validation is claimed."
+    },
+    {
+      "id": "RECONCILIATION-UI",
+      "statement": "An unknown dispatch is decided through the P8-W0 effect reconciliation endpoint; the web app has no agent-run control for it yet."
+    },
+    {
+      "id": "REL-FU-P7-01",
+      "statement": "Kept open (ADR-0045)."
+    },
+    {
+      "id": "TEST-FU-P7-02",
+      "statement": "Kept open (ADR-0045)."
+    }
+  ]
+}
