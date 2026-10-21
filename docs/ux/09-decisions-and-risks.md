@@ -341,6 +341,19 @@
 - **Not built.** Running agents, progress, artifacts, and emergency stop (8C), per-action approval and acceptance (8D), a template catalog (10B), and plan entitlements (10A).
 - **Affected.** Agents list and profile pages; task page.
 
+<a id="uxd-34"></a>
+#### UXD-34 — Agent runs
+
+- **Start from the task.** An assigned agent that is ready offers "Run {agent}" in the task's Runs area. Starting opens a preview that names exactly what the run may read, each tool and whether it runs (read only) or would wait for an approval that is not available yet, the limits, and the cost basis (measured AI usage for an internal agent, which the person confirms; cost reported by the agent for an external one). A refusal names why and the run cannot start.
+- **Runs and states.** Each run shows Queued, Running, Waiting, Failed, Cancelled, or Ready for review, in words with a shape, and why it waits (paused by a person or by the emergency stop, waiting for authority with what changed, or an unclear dispatch an owner must decide). Ready for review uses a neutral chip, never the success tick, and says a person reviews the output before it counts and the task is unchanged. There is no accept or approve control (8D).
+- **Progress.** Progress follows the run by long poll and says "Reconnecting to progress…" while it retries; agent progress and commentary are labelled as the agent's notes. The tool timeline names each call and whether it ran, needed approval (not run), or was refused. Usage shows tool calls against the limit; cost is labelled measured or "reported by {agent}, not measured".
+- **Drafts.** Draft output opens in a dialog that says it has not been accepted, with its version and hash.
+- **Controls.** Pause, Resume, Retry, and Cancel run appear only when the person may use them now; cancel asks first and says anything already sent stays as a draft.
+- **Health and emergency stop.** The Agents page shows owners and administrators open and recent runs by state and "Stop all agent work", confirmed in a dialog with an optional reason; while stopped a warning banner says so, and "Allow agents to run again" leaves paused runs paused until each is resumed. Others do not see the card.
+- **Layout.** Labelled controls, 320 px and 200% zoom without sideways scrolling, state text that survives forced colours, and no animation.
+- **Not built.** Per-action approval, review and acceptance, and deliverable promotion (8D).
+- **Affected.** Task page; Agents list.
+
 ## 4. UX risk register
 
 | ID | Risk | Likelihood / impact | Mitigation in this set | Early-warning evidence | Owner phase |

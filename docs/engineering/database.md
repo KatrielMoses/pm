@@ -560,3 +560,22 @@ Migration `0064_agent_profiles_connectors` (expand; exact rollback to 0063; 0B A
 - **Indexes:** the task panel (`agent_assignment_by_task`), a profile's active assignments (`agent_assignment_by_profile`), grants by target (`agent_scope_grant_by_target`), and a connector's latest test (`agent_connector_test_by_connector`); plans are checked at volume in `agents-volume.test.ts`.
 - **Rollback:** the down migration restores the exact 0063 catalog. It refuses, with counts, while any agent profile or assignment exists (forced row-level security lifted for that one check).
 - **Purge:** task purge deletes the task's assignment revisions and assignments; profile purge deletes assignments, connector tests, the connector, grants, revisions, then the profile, and refuses while a connector still holds a secret reference. Workspace purge deletes the `agents` tables in that order before `exec.*` and `core.record`.
+
+## Phase 8C: agent runs
+
+Migration `0065_agent_runs` (expand; exact rollback to 0064; 0B ADR-53, ADR-0048) adds the run tables to the `agents` schema and the `agent` gateway caller. Every table has forced row-level security on `exec.current_workspace_id()` and workspace-scoped foreign keys:
+
+| Table | Holds |
+|---|---|
+| `agents.agent_run` | Detail of an `agent_run` operation: task, profile, assignment, and brand; the pinned assignment and profile revisions, instructions hash, ceiling id arrays, tools, and limits; connector settings version or model; initiator (person or automation run); `operation_id`, `current_operation_id` (retries), `model_operation_id`; attempt, dispatch generation, phase; counters; measured and reported cost; pause request; result; deadline; `ended_at`. One open run per task and profile (`agent_run_open`, partial unique on `ended_at IS NULL`) |
+| `agents.agent_run_event` | Progress with a per-run sequence (`agent_run_event_seq_unique`, the long-poll cursor) and an optional agent key; bounded text and data |
+| `agents.agent_tool_call` | Each tool request: registered tool and version, class, decision, code, duration (never targets or results) |
+| `agents.agent_artifact` | Immutable draft artifacts (`agent_artifact_immutable` trigger), versioned by key, bounded, SHA-256 checked |
+| `agents.agent_run_credential` | Run-bound credentials: `par_` prefix and SHA-256 hash only, expiry, stop epoch, state and revocation |
+| `agents.emergency_stop` | Immutable stop and restart records (`emergency_stop_immutable` trigger) with a monotonic epoch per workspace |
+
+- **Grants:** `app_rw` and `app_worker` read and insert every table and update named run and credential columns; `app_worker` deletes run rows for purge. Artifacts and stop records are never updated. `pm_directory` reads only the credential lookup columns through the definer function `agents.resolve_run_credential(prefix, hash)`, which returns the workspace public id for a matching active, unexpired credential of an open run.
+- **`ai.ai_action.caller_kind`** gains `agent` (an internal run's gateway turn).
+- **Indexes:** a task's run history (`agent_run_by_task`), the open run (`agent_run_open`), active runs (`agent_run_active`), the run behind a model turn (`agent_run_by_model_operation`), events after a cursor (`agent_run_event_seq_unique`), and credential lookup (`agent_run_credential_prefix_unique`); plans are checked at volume in `agents-volume.test.ts`.
+- **Rollback:** the down migration restores the exact 0064 catalog. It refuses, with counts, while any run, stop record, or agent model turn exists (forced row-level security lifted for that one check).
+- **Purge:** task purge (and assignment purge) deletes a run's credentials, artifacts, tool calls, and events, then the run. Workspace purge deletes the run tables with the rest of the `agents` schema.

@@ -221,14 +221,18 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       // other path is one opaque answer (the run itself is re-checked by the service).
       if (resolved.delegation.principalType === 'agent_run') {
         const callback =
-          /^\/v1\/workspaces\/[^/]+\/agent-runs\/[^/]+\/(context|events|tools|artifacts|result)$/.test(path) ||
+          /^\/v1\/workspaces\/[^/]+\/agent-runs\/[^/]+\/(context|events|tools|artifacts|result)$/.test(
+            path,
+          ) ||
           (/^\/v1\/workspaces\/[^/]+\/mcp$/.test(path) && request.method === 'POST');
         if (!callback) return fail(request, reply, 'not_found');
         const runLimit = path.endsWith('/mcp')
           ? undefined
           : await deps.limitBearer?.(resolved.delegation.tokenId, request.method !== 'GET');
         if (runLimit && !runLimit.allowed)
-          return fail(request, reply, 'rate_limited', { retryAfterSeconds: runLimit.retryAfterSeconds });
+          return fail(request, reply, 'rate_limited', {
+            retryAfterSeconds: runLimit.retryAfterSeconds,
+          });
         request.auth = resolved.auth;
         request.delegation = resolved.delegation;
         return;
@@ -276,7 +280,12 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       // `agents:execute`; run callbacks are for run-bound credentials only.
       if (/^\/v1\/workspaces\/[^/]+\/agent-(emergency-stop|health)/.test(path))
         return fail(request, reply, 'forbidden');
-      if (/^\/v1\/workspaces\/[^/]+\/agent-runs\/[^/]+\/(context|events|tools|artifacts|result)$/.test(path) && write)
+      if (
+        /^\/v1\/workspaces\/[^/]+\/agent-runs\/[^/]+\/(context|events|tools|artifacts|result)$/.test(
+          path,
+        ) &&
+        write
+      )
         return fail(request, reply, 'not_found');
       if (/^\/v1\/workspaces\/[^/]+\/agent-runs\//.test(path) && write) {
         if (!held.includes('agents:execute')) return fail(request, reply, 'forbidden');

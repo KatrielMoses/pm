@@ -46,7 +46,7 @@ const WAITING_TEXT: Record<string, string> = {
     'Stopped because what the agent may use changed. Resuming checks its authority again.',
   approval: 'Waiting for an approval that is not available yet.',
   reconciliation_required:
-    'Unclear whether the agent received the work. An owner decides on the operation page; nothing is sent again automatically.',
+    'Unclear whether the agent received the work. Nothing is sent again automatically; a workspace owner must confirm what happened before the run can continue or be cancelled.',
   rate_limit: 'Waiting for a rate limit to clear.',
   dependency_unavailable: 'Waiting for a service that is not available.',
   delay: 'Waiting before trying again.',
@@ -367,7 +367,6 @@ function useRunEvents(ws: string, run: AgentRun, onState: () => void) {
     let live = true;
     let cursor = 0;
     let failures = 0;
-    setEvents([]);
     const loop = async () => {
       for (;;) {
         if (!live) return;
@@ -376,7 +375,12 @@ function useRunEvents(ws: string, run: AgentRun, onState: () => void) {
           if (!live) return;
           failures = 0;
           setReconnecting(false);
-          if (r.events.length) setEvents((e) => [...e, ...r.events].slice(-200));
+          // A restarted follow (resume or retry) reads from the start: keep each event once.
+          if (r.events.length)
+            setEvents((e) => {
+              const seen = new Set(e.map((x) => x.seq));
+              return [...e, ...r.events.filter((x) => !seen.has(x.seq))].slice(-200);
+            });
           cursor = r.cursor;
           const s = `${r.state}:${r.waiting ?? ''}`;
           if (s !== stateRef.current) {

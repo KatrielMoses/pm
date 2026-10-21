@@ -64,6 +64,10 @@ def check_briefings():
     errs = []
     facts = read(P(FACTS))
     for key in SECTIONS:
+        # 8C replaces the agent-run foundation statement with real agent-run facts (ADR-0048).
+        if key == "agent_runs.foundation" and "key: 'agent_runs.ready'," in facts and os.path.isfile(
+                P("packages/work/src/agents/runs.ts")):
+            continue
         if "key: '%s'," % key not in facts:
             errs.append("the fact engine lacks the %s statement" % key)
     if re.search(r"from '\.\./provider|\.complete\(|\.stream\(|\bfetch\(", facts):
@@ -167,7 +171,8 @@ def check_migration():
                    "0061_effect_recovery_safety.up.sql": "phase8w0.py",
                    "0062_automation_engine.up.sql": "phase8a.py",
                    "0063_automation_checkpoint_refs.up.sql": "phase8a.py",
-                   "0064_agent_profiles_connectors.up.sql": "phase8b.py"}
+                   "0064_agent_profiles_connectors.up.sql": "phase8b.py",
+                   "0065_agent_runs.up.sql": "phase8c.py"}
     after = names[names.index("0058_ai_briefings.up.sql") + 1:] if "0058_ai_briefings.up.sql" in names else ["?"]
     for n in after:
         if n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])):

@@ -220,7 +220,9 @@ describe('Search, goals, metrics, dashboards, and reports as one permission-safe
     );
     // 7A (AI usage), 8A (automation outcomes), and 8C (agent outcomes) have since registered
     // through the same port; the later sources remain listed.
-    expect(cat.not_available.map((m: { key: string }) => m.key).sort()).toEqual(['quality.release']);
+    expect(cat.not_available.map((m: { key: string }) => m.key).sort()).toEqual([
+      'quality.release',
+    ]);
     expect(env.svc.metricCatalog(true).metrics.map((m: { key: string }) => m.key)).not.toContain(
       'work.aging',
     );

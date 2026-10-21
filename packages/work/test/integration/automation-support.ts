@@ -1,5 +1,10 @@
 import { LogErrorReporter } from '@pm/observability';
-import { WorkerRuntime, type EffectBarriers, type JobHandler, type OutboxConsumer } from '@pm/platform';
+import {
+  WorkerRuntime,
+  type EffectBarriers,
+  type JobHandler,
+  type OutboxConsumer,
+} from '@pm/platform';
 import type { TestDatabase } from '@pm/test-support/vitest';
 import {
   automationRunHandler,

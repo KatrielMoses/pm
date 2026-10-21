@@ -49,13 +49,23 @@ const KEY = /^[A-Za-z0-9._:-]{1,128}$/;
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 
-function text(v: unknown, max: number, pointer: string, issues: Bad[], required = true): string | null {
+function text(
+  v: unknown,
+  max: number,
+  pointer: string,
+  issues: Bad[],
+  required = true,
+): string | null {
   if (v === undefined || v === null || v === '') {
     if (required) issues.push({ pointer, code: 'required', message: 'This field is required.' });
     return null;
   }
   if (typeof v !== 'string' || v.length > max || CONTROL.test(v)) {
-    issues.push({ pointer, code: 'invalid_length', message: `Use up to ${max} characters of text.` });
+    issues.push({
+      pointer,
+      code: 'invalid_length',
+      message: `Use up to ${max} characters of text.`,
+    });
     return null;
   }
   return v;
@@ -63,7 +73,11 @@ function text(v: unknown, max: number, pointer: string, issues: Bad[], required 
 
 function key(v: unknown, pointer: string, issues: Bad[]): string | null {
   if (typeof v !== 'string' || !KEY.test(v)) {
-    issues.push({ pointer, code: 'invalid_key', message: 'Use 1 to 128 letters, digits, or . _ : -.' });
+    issues.push({
+      pointer,
+      code: 'invalid_key',
+      message: 'Use 1 to 128 letters, digits, or . _ : -.',
+    });
     return null;
   }
   return v;
@@ -72,7 +86,11 @@ function key(v: unknown, pointer: string, issues: Bad[]): string | null {
 function only(b: Record<string, unknown>, allowed: string[], issues: Bad[]) {
   for (const k of Object.keys(b))
     if (!allowed.includes(k))
-      issues.push({ pointer: `/${k}`, code: 'unknown_field', message: 'This field is not accepted.' });
+      issues.push({
+        pointer: `/${k}`,
+        code: 'unknown_field',
+        message: 'This field is not accepted.',
+      });
 }
 
 export interface EventInput {
@@ -89,12 +107,26 @@ export function parseEvent(body: unknown, maxChars: number): Parsed<EventInput> 
   only(b, ['key', 'kind', 'text', 'percent'], issues);
   const k = key(b.key, '/key', issues);
   const kind = b.kind === 'progress' || b.kind === 'commentary' ? b.kind : null;
-  if (!kind) issues.push({ pointer: '/kind', code: 'invalid_option', message: 'Use progress or commentary.' });
+  if (!kind)
+    issues.push({
+      pointer: '/kind',
+      code: 'invalid_option',
+      message: 'Use progress or commentary.',
+    });
   const t = text(b.text, maxChars, '/text', issues);
   let percent: number | null = null;
   if (b.percent !== undefined && b.percent !== null) {
-    if (typeof b.percent !== 'number' || !Number.isInteger(b.percent) || b.percent < 0 || b.percent > 100)
-      issues.push({ pointer: '/percent', code: 'out_of_range', message: 'Use a whole number from 0 to 100.' });
+    if (
+      typeof b.percent !== 'number' ||
+      !Number.isInteger(b.percent) ||
+      b.percent < 0 ||
+      b.percent > 100
+    )
+      issues.push({
+        pointer: '/percent',
+        code: 'out_of_range',
+        message: 'Use a whole number from 0 to 100.',
+      });
     else percent = b.percent;
   }
   return issues.length || !k || !kind || t === null
@@ -115,12 +147,27 @@ export function parseToolCall(body: unknown): Parsed<ToolCallInput> {
   only(b, ['key', 'tool', 'version', 'arguments'], issues);
   const k = key(b.key, '/key', issues);
   const tool = typeof b.tool === 'string' && /^[a-z][a-z0-9_.]{1,79}$/.test(b.tool) ? b.tool : null;
-  if (!tool) issues.push({ pointer: '/tool', code: 'invalid_reference', message: 'Name a registered tool.' });
-  const version = typeof b.version === 'string' && /^[0-9]{1,8}$/.test(b.version) ? b.version : null;
-  if (!version) issues.push({ pointer: '/version', code: 'invalid_reference', message: 'Name the tool version.' });
+  if (!tool)
+    issues.push({
+      pointer: '/tool',
+      code: 'invalid_reference',
+      message: 'Name a registered tool.',
+    });
+  const version =
+    typeof b.version === 'string' && /^[0-9]{1,8}$/.test(b.version) ? b.version : null;
+  if (!version)
+    issues.push({
+      pointer: '/version',
+      code: 'invalid_reference',
+      message: 'Name the tool version.',
+    });
   const args = b.arguments === undefined ? {} : b.arguments;
   if (!isObj(args) || JSON.stringify(args).length > 4096)
-    issues.push({ pointer: '/arguments', code: 'invalid_type', message: 'Arguments are a small object.' });
+    issues.push({
+      pointer: '/arguments',
+      code: 'invalid_type',
+      message: 'Arguments are a small object.',
+    });
   return issues.length || !k || !tool || !version
     ? { ok: false, issues }
     : { ok: true, value: { key: k, tool, version, arguments: args as Record<string, unknown> } };
@@ -147,7 +194,12 @@ export function parseArtifact(body: unknown, maxBytes: number): Parsed<ArtifactI
   const b = isObj(body) ? body : {};
   only(b, ['key', 'title', 'media_type', 'content', 'sha256'], issues);
   const k = typeof b.key === 'string' && /^[A-Za-z0-9._-]{1,64}$/.test(b.key) ? b.key : null;
-  if (!k) issues.push({ pointer: '/key', code: 'invalid_key', message: 'Use 1 to 64 letters, digits, or . _ -.' });
+  if (!k)
+    issues.push({
+      pointer: '/key',
+      code: 'invalid_key',
+      message: 'Use 1 to 64 letters, digits, or . _ -.',
+    });
   const title = text(b.title, 200, '/title', issues);
   const mt = (ARTIFACT_MEDIA_TYPES as readonly string[]).includes(b.media_type as string)
     ? (b.media_type as ArtifactMediaType)
@@ -156,26 +208,49 @@ export function parseArtifact(body: unknown, maxBytes: number): Parsed<ArtifactI
     issues.push({
       pointer: '/media_type',
       code: 'unsupported_media_type',
-      message: 'Artifacts are Markdown, plain text, or JSON. Files need file hosting, which runs do not use yet.',
+      message:
+        'Artifacts are Markdown, plain text, or JSON. Files need file hosting, which runs do not use yet.',
     });
   let content: string | null = null;
-  if (typeof b.content !== 'string') issues.push({ pointer: '/content', code: 'required', message: 'Add the content.' });
+  if (typeof b.content !== 'string')
+    issues.push({ pointer: '/content', code: 'required', message: 'Add the content.' });
   else if (Buffer.byteLength(b.content) > maxBytes)
-    issues.push({ pointer: '/content', code: 'too_large', message: `An artifact is at most ${maxBytes} bytes.` });
+    issues.push({
+      pointer: '/content',
+      code: 'too_large',
+      message: `An artifact is at most ${maxBytes} bytes.`,
+    });
   else if (CONTROL.test(b.content.replace(/[\n\r\t]/g, '')))
-    issues.push({ pointer: '/content', code: 'invalid_format', message: 'Control characters are not accepted.' });
+    issues.push({
+      pointer: '/content',
+      code: 'invalid_format',
+      message: 'Control characters are not accepted.',
+    });
   else content = b.content;
   if (content !== null && mt === 'application/json') {
     try {
       JSON.parse(content);
     } catch {
-      issues.push({ pointer: '/content', code: 'invalid_format', message: 'This is not valid JSON.' });
+      issues.push({
+        pointer: '/content',
+        code: 'invalid_format',
+        message: 'This is not valid JSON.',
+      });
     }
   }
   const sha = typeof b.sha256 === 'string' && /^[0-9a-f]{64}$/.test(b.sha256) ? b.sha256 : null;
-  if (!sha) issues.push({ pointer: '/sha256', code: 'invalid_format', message: 'Give the SHA-256 of the content.' });
+  if (!sha)
+    issues.push({
+      pointer: '/sha256',
+      code: 'invalid_format',
+      message: 'Give the SHA-256 of the content.',
+    });
   else if (content !== null && sha256Hex(content) !== sha)
-    issues.push({ pointer: '/sha256', code: 'checksum_mismatch', message: 'The checksum does not match the content.' });
+    issues.push({
+      pointer: '/sha256',
+      code: 'checksum_mismatch',
+      message: 'The checksum does not match the content.',
+    });
   return issues.length || !k || title === null || !mt || content === null || !sha
     ? { ok: false, issues }
     : { ok: true, value: { key: k, title, media_type: mt, content, sha256: sha } };
@@ -200,19 +275,36 @@ export function parseResult(body: unknown): Parsed<ResultInput> {
   const b = isObj(body) ? body : {};
   only(b, ['key', 'attempt', 'status', 'summary', 'artifacts', 'reported_cost'], issues);
   const k = key(b.key, '/key', issues);
-  const attempt = typeof b.attempt === 'number' && Number.isInteger(b.attempt) && b.attempt >= 1 ? b.attempt : null;
-  if (attempt === null) issues.push({ pointer: '/attempt', code: 'required', message: 'Name the run attempt.' });
+  const attempt =
+    typeof b.attempt === 'number' && Number.isInteger(b.attempt) && b.attempt >= 1
+      ? b.attempt
+      : null;
+  if (attempt === null)
+    issues.push({ pointer: '/attempt', code: 'required', message: 'Name the run attempt.' });
   const status = b.status === 'completed' || b.status === 'failed' ? b.status : null;
-  if (!status) issues.push({ pointer: '/status', code: 'invalid_option', message: 'Use completed or failed.' });
+  if (!status)
+    issues.push({
+      pointer: '/status',
+      code: 'invalid_option',
+      message: 'Use completed or failed.',
+    });
   const summary = text(b.summary, 4000, '/summary', issues);
   const artifacts: string[] = [];
   if (b.artifacts !== undefined) {
     if (!Array.isArray(b.artifacts) || b.artifacts.length > 50)
-      issues.push({ pointer: '/artifacts', code: 'invalid_type', message: 'List up to 50 artifact keys.' });
+      issues.push({
+        pointer: '/artifacts',
+        code: 'invalid_type',
+        message: 'List up to 50 artifact keys.',
+      });
     else
       for (const [i, a] of b.artifacts.entries())
         if (typeof a !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(a))
-          issues.push({ pointer: `/artifacts/${i}`, code: 'invalid_key', message: 'Name an artifact key.' });
+          issues.push({
+            pointer: `/artifacts/${i}`,
+            code: 'invalid_key',
+            message: 'Name an artifact key.',
+          });
         else if (!artifacts.includes(a)) artifacts.push(a);
   }
   let reported: ResultInput['reported_cost'] = null;
@@ -226,7 +318,11 @@ export function parseResult(body: unknown): Parsed<ResultInput> {
       typeof r.currency !== 'string' ||
       !/^[A-Z]{3}$/.test(r.currency)
     )
-      issues.push({ pointer: '/reported_cost', code: 'invalid_type', message: 'Give an amount in micros and a currency.' });
+      issues.push({
+        pointer: '/reported_cost',
+        code: 'invalid_type',
+        message: 'Give an amount in micros and a currency.',
+      });
     else reported = { amount_micros: r.amount_micros, currency: r.currency };
   }
   return issues.length || !k || attempt === null || !status || summary === null

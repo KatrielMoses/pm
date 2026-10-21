@@ -37,11 +37,26 @@ export const RUN_STATE_TABLE: ReadonlyArray<{
   { op: 'running', run: 'running' },
   // Waiting for the agent's or the model's own answer is work in progress, not a block.
   { op: 'waiting', reason: 'external_confirmation', run: 'running' },
-  { op: 'waiting', reason: 'authorization_changed', run: 'waiting', waiting: 'authorization_changed' },
+  {
+    op: 'waiting',
+    reason: 'authorization_changed',
+    run: 'waiting',
+    waiting: 'authorization_changed',
+  },
   { op: 'waiting', reason: 'approval', run: 'waiting', waiting: 'approval' },
-  { op: 'waiting', reason: 'reconciliation_required', run: 'waiting', waiting: 'reconciliation_required' },
+  {
+    op: 'waiting',
+    reason: 'reconciliation_required',
+    run: 'waiting',
+    waiting: 'reconciliation_required',
+  },
   { op: 'waiting', reason: 'rate_limit', run: 'waiting', waiting: 'rate_limit' },
-  { op: 'waiting', reason: 'dependency_unavailable', run: 'waiting', waiting: 'dependency_unavailable' },
+  {
+    op: 'waiting',
+    reason: 'dependency_unavailable',
+    run: 'waiting',
+    waiting: 'dependency_unavailable',
+  },
   { op: 'waiting', reason: 'delay', run: 'waiting', waiting: 'delay' },
   { op: 'waiting', reason: 'input', run: 'waiting', waiting: 'input' },
   { op: 'paused', run: 'waiting', waiting: 'paused' },
@@ -65,7 +80,13 @@ export function runStateOf(
   return { state: row.run, waiting: row.waiting ?? null };
 }
 
-export const TERMINAL_OPS: readonly ExecState[] = ['succeeded', 'partial', 'failed', 'cancelled', 'skipped'];
+export const TERMINAL_OPS: readonly ExecState[] = [
+  'succeeded',
+  'partial',
+  'failed',
+  'cancelled',
+  'skipped',
+];
 export const isTerminalOp = (s: ExecState) => TERMINAL_OPS.includes(s);
 
 /**

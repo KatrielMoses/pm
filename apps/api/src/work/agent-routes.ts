@@ -264,9 +264,23 @@ export function registerAgents(app: FastifyInstance, work: AgentRunService): voi
         );
       }
       if (t.verb === 'run') {
-        const r = await work.startAgentRun(caller(request), p(request).ws, p(request).tsk, t.id, request.body, mutation(request));
+        const r = await work.startAgentRun(
+          caller(request),
+          p(request).ws,
+          p(request).tsk,
+          t.id,
+          request.body,
+          mutation(request),
+        );
         const { id: _id, type: _type, ...view } = r.data;
-        return flat(request, reply, 'agent_run', { run: { id: _id, ...view } }, r.status, r.replayed);
+        return flat(
+          request,
+          reply,
+          'agent_run',
+          { run: { id: _id, ...view } },
+          r.status,
+          r.replayed,
+        );
       }
       return fail(request, reply, 'not_found');
     }),
@@ -291,14 +305,30 @@ export function registerAgents(app: FastifyInstance, work: AgentRunService): voi
     `${ws}/tasks/:tsk/agent-run-preview`,
     wrap(async (request, reply) => {
       const q = (request.query ?? {}) as Record<string, unknown>;
-      const { type: _type, ...rest } = await work.previewAgentRun(caller(request), p(request).ws, p(request).tsk, q.profile);
+      const { type: _type, ...rest } = await work.previewAgentRun(
+        caller(request),
+        p(request).ws,
+        p(request).tsk,
+        q.profile,
+      );
       return flat(request, reply, 'agent_run_preview', rest);
     }),
   );
   app.get(
     `${ws}/agent-runs/:run`,
     wrap(async (request, reply) =>
-      flat(request, reply, 'agent_run', runEnvelope(await work.getAgentRun(caller(request), p(request).ws, (request.params as { run: string }).run))),
+      flat(
+        request,
+        reply,
+        'agent_run',
+        runEnvelope(
+          await work.getAgentRun(
+            caller(request),
+            p(request).ws,
+            (request.params as { run: string }).run,
+          ),
+        ),
+      ),
     ),
   );
   app.get(
@@ -317,7 +347,12 @@ export function registerAgents(app: FastifyInstance, work: AgentRunService): voi
     `${ws}/agent-runs/:run/artifacts/:key`,
     wrap(async (request, reply) => {
       const prm = request.params as { run: string; key: string };
-      const { type: _type, ...rest } = await work.getAgentArtifact(caller(request), p(request).ws, prm.run, prm.key);
+      const { type: _type, ...rest } = await work.getAgentArtifact(
+        caller(request),
+        p(request).ws,
+        prm.run,
+        prm.key,
+      );
       return flat(request, reply, 'agent_artifact', rest);
     }),
   );
@@ -325,7 +360,8 @@ export function registerAgents(app: FastifyInstance, work: AgentRunService): voi
     `${ws}/agent-runs/:run`,
     wrap(async (request, reply) => {
       const t = split((request.params as { run: string }).run);
-      if (!t || !['pause', 'resume', 'cancel', 'retry'].includes(t.verb)) return fail(request, reply, 'not_found');
+      if (!t || !['pause', 'resume', 'cancel', 'retry'].includes(t.verb))
+        return fail(request, reply, 'not_found');
       const r = await work.controlAgentRun(
         caller(request),
         p(request).ws,
@@ -333,7 +369,14 @@ export function registerAgents(app: FastifyInstance, work: AgentRunService): voi
         t.verb as 'pause' | 'resume' | 'cancel' | 'retry',
         mutation(request),
       );
-      return flat(request, reply, 'agent_run', runEnvelope(r.data as { id: string; type: string }), r.status, r.replayed);
+      return flat(
+        request,
+        reply,
+        'agent_run',
+        runEnvelope(r.data as { id: string; type: string }),
+        r.status,
+        r.replayed,
+      );
     }),
   );
   // Callbacks from an external agent: the run-bound credential only (the bearer gate and the
@@ -341,41 +384,85 @@ export function registerAgents(app: FastifyInstance, work: AgentRunService): voi
   app.get(
     `${ws}/agent-runs/:run/context`,
     wrap(async (request, reply) => {
-      const { type: _type, ...rest } = await work.agentRunContext(caller(request), p(request).ws, (request.params as { run: string }).run);
+      const { type: _type, ...rest } = await work.agentRunContext(
+        caller(request),
+        p(request).ws,
+        (request.params as { run: string }).run,
+      );
       return flat(request, reply, 'agent_run_context', rest);
     }),
   );
   const callback = (
     path: string,
-    type: 'agent_run_event_receipt' | 'agent_tool_result' | 'agent_artifact_receipt' | 'agent_run_result_receipt',
-    fn: (cl: ReturnType<typeof caller>, w: unknown, run: string, body: unknown) => Promise<{ type: string } & Record<string, unknown>>,
+    type:
+      | 'agent_run_event_receipt'
+      | 'agent_tool_result'
+      | 'agent_artifact_receipt'
+      | 'agent_run_result_receipt',
+    fn: (
+      cl: ReturnType<typeof caller>,
+      w: unknown,
+      run: string,
+      body: unknown,
+    ) => Promise<{ type: string } & Record<string, unknown>>,
   ) =>
     app.post(
       `${ws}/agent-runs/:run/${path}`,
       wrap(async (request, reply) => {
-        const { type: _type, ...rest } = await fn(caller(request), p(request).ws, (request.params as { run: string }).run, request.body);
+        const { type: _type, ...rest } = await fn(
+          caller(request),
+          p(request).ws,
+          (request.params as { run: string }).run,
+          request.body,
+        );
         return flat(request, reply, type, rest);
       }),
     );
-  callback('events', 'agent_run_event_receipt', (cl, w, run, body) => work.agentRunPostEvent(cl, w, run, body));
-  callback('tools', 'agent_tool_result', (cl, w, run, body) => work.agentRunCallTool(cl, w, run, body));
-  callback('artifacts', 'agent_artifact_receipt', (cl, w, run, body) => work.agentRunPostArtifact(cl, w, run, body));
-  callback('result', 'agent_run_result_receipt', (cl, w, run, body) => work.agentRunPostResult(cl, w, run, body));
+  callback('events', 'agent_run_event_receipt', (cl, w, run, body) =>
+    work.agentRunPostEvent(cl, w, run, body),
+  );
+  callback('tools', 'agent_tool_result', (cl, w, run, body) =>
+    work.agentRunCallTool(cl, w, run, body),
+  );
+  callback('artifacts', 'agent_artifact_receipt', (cl, w, run, body) =>
+    work.agentRunPostArtifact(cl, w, run, body),
+  );
+  callback('result', 'agent_run_result_receipt', (cl, w, run, body) =>
+    work.agentRunPostResult(cl, w, run, body),
+  );
 
   // Emergency stop and health (owner/administrator; session only) ----------------------------
   app.post(
     `${ws}/agent-emergency-stop`,
     wrap(async (request, reply) => {
-      const r = await work.triggerAgentEmergencyStop(caller(request), p(request).ws, request.body, mutation(request));
-      const { id: _id, type: _type, ...rest } = r.data as { id: string; type: string } & Record<string, unknown>;
+      const r = await work.triggerAgentEmergencyStop(
+        caller(request),
+        p(request).ws,
+        request.body,
+        mutation(request),
+      );
+      const {
+        id: _id,
+        type: _type,
+        ...rest
+      } = r.data as { id: string; type: string } & Record<string, unknown>;
       return flat(request, reply, 'agent_emergency_stop', rest, r.status, r.replayed);
     }),
   );
   app.post(
     `${ws}/agent-emergency-stop/restart`,
     wrap(async (request, reply) => {
-      const r = await work.restartAgentExecution(caller(request), p(request).ws, request.body, mutation(request));
-      const { id: _id, type: _type, ...rest } = r.data as { id: string; type: string } & Record<string, unknown>;
+      const r = await work.restartAgentExecution(
+        caller(request),
+        p(request).ws,
+        request.body,
+        mutation(request),
+      );
+      const {
+        id: _id,
+        type: _type,
+        ...rest
+      } = r.data as { id: string; type: string } & Record<string, unknown>;
       return flat(request, reply, 'agent_emergency_stop', rest, r.status, r.replayed);
     }),
   );

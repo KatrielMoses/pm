@@ -39,4 +39,5 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [phase8/](phase8/closure-p8w0.json) | P8-W0 safe recovery of external effects (Phase 8 prerequisite; closes REL-FU-7A-01; accepted): closure (`closure-p8w0.json`, checked by `tools/phase8w0.py`) and [ADR-0045](adr/0045-effect-recovery-safety.md) |
 | [phase8/](phase8/closure-8a.json) | Phase 8A versioned, permission-safe automation engine: requirement and decision closure (`closure-8a.json`, checked by `tools/phase8a.py`), [ADR-0046](adr/0046-automation-engine.md), and the [automation operator notes](automations.md) |
 | [phase8/](phase8/closure-8b.json) | Phase 8B agent profiles, connectors, and scoped task assignments: requirement and decision closure (`closure-8b.json`, checked by `tools/phase8b.py`), [ADR-0047](adr/0047-agent-profiles-connectors.md), and the [agent operator notes](agents.md) |
+| [phase8/](phase8/closure-8c.json) | Phase 8C durable, bounded agent runs: requirement and decision closure (`closure-8c.json`, checked by `tools/phase8c.py`), [ADR-0048](adr/0048-durable-agent-runs.md), and the [agent run operator notes](agent-runs.md) |
 | [adr/](adr/) | Implementation ADRs 0001–0028 |

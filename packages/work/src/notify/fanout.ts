@@ -194,7 +194,11 @@ export class NotificationFanOut implements OutboxConsumer {
           .where('id', '=', runId)
           .executeTakeFirst();
         if (!r) return [];
-        const recipients = [...new Set([r.initiator_membership_id, r.assigner_membership_id].filter((x): x is string => !!x))];
+        const recipients = [
+          ...new Set(
+            [r.initiator_membership_id, r.assigner_membership_id].filter((x): x is string => !!x),
+          ),
+        ];
         return [
           e.type === 'agents.agent_run.failed'
             ? {
@@ -210,7 +214,10 @@ export class NotificationFanOut implements OutboxConsumer {
                 recordId: r.task_id,
                 actorId: null,
                 recipients,
-                facts: { artifact_count: typeof data.artifact_count === 'number' ? data.artifact_count : null },
+                facts: {
+                  artifact_count:
+                    typeof data.artifact_count === 'number' ? data.artifact_count : null,
+                },
                 occasion: `${runId}:${e.aggregate.sequence}`,
               },
         ];

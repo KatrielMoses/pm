@@ -652,3 +652,25 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - Workspace purge deletes assignment revisions, assignments, connector tests, connectors, grants, revisions, and profiles before `exec.operation` and `core.record`; purge refuses while a connector still holds a secret reference.
   - Agent runs, tool calls, and artifacts (`agent_run`, `agent_tool_call`) remain 8C.
 - **Corrective review 01 (Phase 8B):** no schema change. The stored ceiling on `agents.agent_assignment_revision` is history, as confirmed; the usable (live) ceiling is derived on every read from it, the pinned and current profile grants, and the assigner's and owner's current access, and is never stored.
+
+<a id="adr-53"></a>
+## ADR-53: Agent runs, progress events, tool calls, draft artifacts, run credentials, and the emergency stop (Phase 8C)
+
+- **Decision:** Migration 0065 (expand) reconciles the 0B run entities into the `agents` schema. It changes no earlier file.
+  - `agents.agent_run` (brand scope, task child) is the durable state of one execution. It pins, at admission, the assignment and profile revisions, the instructions hash, the ceiling (brands, projects, records, integrations), the granted tools, the limits, and the connector settings version (external) or model (internal). It links the run's platform operation (`operation_id`) and the current one (`current_operation_id`; a retry links a new operation to the same logical run), and an internal run's model turn (`model_operation_id`). It keeps the counters (tool calls, artifacts, output bytes, events), the phase, the dispatch generation (bumped only by an explicit resume), the deadline, the pause request and who paused, the agent's result status and summary, measured cost, and reported cost with its currency (OD-24: labelled reported, never measured). One open run per task and profile (partial unique index on `ended_at IS NULL`).
+  - The run's display state is derived from the operation by one table (queued, running, waiting with its reason, failed, cancelled, ready for review) and is never stored. `accepted` is not a state here: it is reserved for a real 8D decision.
+  - `agents.agent_run_event` is the bounded progress stream with a per-run sequence (the long-poll cursor) and an optional agent idempotency key. Agent progress and commentary are notes, never completion.
+  - `agents.agent_tool_call` records each tool request (registered tool and version, class, decision, code, duration), never its targets or results.
+  - `agents.agent_artifact` (the 0B `artifact`) is immutable, versioned by key, bounded, and SHA-256 checked; draft evidence only.
+  - `agents.agent_run_credential` holds a run-bound credential's prefix and SHA-256 hash only, its expiry (never past the deadline), the emergency-stop epoch it was issued under, and revocation. A definer function resolves it for the directory role.
+  - `agents.emergency_stop` is append-only stop and restart records with a monotonic epoch per workspace.
+  - `ai.ai_action.caller_kind` gains `agent` (an internal run's gateway turn).
+  - All tables have forced row-level security on `exec.current_workspace_id()` and tenant foreign keys; artifacts and stop records refuse updates by trigger. `app_rw` and `app_worker` get column-scoped updates; `app_worker` deletes for purge.
+- **Alternatives:**
+  - A stored run state column beside the operation, which could drift from the one authority.
+  - Storing tool targets or results, or the credential itself, which would keep task content and secrets outside their owners.
+  - A per-run lock without the partial unique index, which a concurrent admission could pass.
+- **Consequences:**
+  - The down migration restores the exact 0064 catalog and refuses, with counts, while any run, stop record, or agent model turn exists (forced row-level security lifted for that one check).
+  - Task purge removes runs with their events, tool calls, artifacts, and credentials; workspace purge removes them before `exec.operation`.
+  - Action approvals (`action_approval`) and deliverable promotion remain 8D.

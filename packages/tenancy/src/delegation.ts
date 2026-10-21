@@ -4,11 +4,7 @@ export interface TokenDelegation {
   tokenPublicId: string;
   kind: 'personal' | 'service' | 'inbound' | 'oauth' | 'agent_run';
   principalType:
-    | 'api_token_personal'
-    | 'service_principal'
-    | 'inbound_webhook'
-    | 'oauth_client'
-    | 'agent_run';
+    'api_token_personal' | 'service_principal' | 'inbound_webhook' | 'oauth_client' | 'agent_run';
   scopes: readonly string[];
   /** Null means every brand the membership can already access. */
   brandIds: readonly string[] | null;

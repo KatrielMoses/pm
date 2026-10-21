@@ -120,18 +120,27 @@ export const agentRunsMetric: MetricProvider = {
     return {
       ...base,
       value: ended ? Math.round((ready * 1000) / ended) / 10 : null,
-      rows: OUTCOMES.map((o) => ({ cells: { outcome: LABEL[o], runs: counts.get(o) ?? 0 }, link: null })),
+      rows: OUTCOMES.map((o) => ({
+        cells: { outcome: LABEL[o], runs: counts.get(o) ?? 0 },
+        link: null,
+      })),
       incomplete: uncertain > 0 ? ['no_measurement'] : [],
       notes: [
         'Rate = runs ready for review / runs that ended. Ready for review is draft output for a person, not acceptance. Automation runs are not included.',
         ...(uncertain > 0
-          ? [`${uncertain} run(s) wait for an owner to confirm what a dispatch did; they are not counted until they end.`]
+          ? [
+              `${uncertain} run(s) wait for an owner to confirm what a dispatch did; they are not counted until they end.`,
+            ]
           : []),
       ],
     };
   },
   async drill(ctx, params, page) {
     const c = await this.compute(ctx, params);
-    return { columns: c.columns, rows: c.rows.slice(0, page.limit), page: { limit: page.limit, has_more: false } };
+    return {
+      columns: c.columns,
+      rows: c.rows.slice(0, page.limit),
+      page: { limit: page.limit, has_more: false },
+    };
   },
 };

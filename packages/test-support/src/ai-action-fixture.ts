@@ -242,7 +242,9 @@ function analysisReply(action: string, scenario: ActionScenario, sources: Source
           .slice(0, 5)
           .map((s) => `- ${s.title}`)
           .join('\n')}`,
-        items: sources.slice(0, 3).map((s) => ({ kind: 'note', text: s.title, sources: [s.source] })),
+        items: sources
+          .slice(0, 3)
+          .map((s) => ({ kind: 'note', text: s.title, sources: [s.source] })),
       });
     case 'draft_release_notes':
       return JSON.stringify({

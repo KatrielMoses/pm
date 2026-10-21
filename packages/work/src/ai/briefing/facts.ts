@@ -994,7 +994,12 @@ export async function buildStatements(
       text: readyTotal
         ? `${plural(readyTotal, 'agent run')} on tasks you can read returned draft output for review in this window. Ready for review is not acceptance and does not complete a task.`
         : 'No agent run on a task you can read returned output for review in this window.',
-      refs: ready.map((t) => ({ type: 'task' as const, id: t.public_id, rec: t.public_id, v: t.version })),
+      refs: ready.map((t) => ({
+        type: 'task' as const,
+        id: t.public_id,
+        rec: t.public_id,
+        v: t.version,
+      })),
       figures: { total: readyTotal, shown: ready.length },
     });
     for (const t of ready)

@@ -287,7 +287,9 @@ describe('agent runs (8C): end to end', () => {
     ).rejects.toEqual(expect.objectContaining({ code: 'conflict' }));
     await enableAi(env, w.owner, w.ws);
     const before = await taskStatus(task);
-    const run = (await env.svc.startAgentRun(w.owner, w.ws, task, internal.id, { confirm: true }, mutation())).data as Record<string, any>;
+    const run = (
+      await env.svc.startAgentRun(w.owner, w.ws, task, internal.id, { confirm: true }, mutation())
+    ).data as Record<string, any>;
     await settle(db, worker);
     await settle(db, worker);
     const v = await view(run.id);

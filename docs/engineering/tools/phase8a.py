@@ -43,6 +43,8 @@ TABLES = ["automation", "automation_revision", "automation_run", "automation_ste
 UNSUPPORTED = {"project.create", "project.assign", "project.move", "project.label", "project.relate"}
 UNAVAILABLE_ACTIONS = {"agent.invoke": "8C"}
 UNAVAILABLE_TRIGGERS = {"test.result": "9B", "agent.result": "8C"}
+# 8C supplies the agent runtime: agent steps and agent-result triggers become real (phase8c.py).
+RUNS_8C = "packages/work/src/agents/runs.ts"
 BOUNDARIES = ["9B", "8C", "10A", "10B", "PRODUCTION-AI", "NO-EXACTLY-ONCE", "MANUAL", "REL-FU-P7-01", "TEST-FU-P7-02"]
 PARAMS = ["AUTOMATIONS_PER_WORKSPACE_MAX", "AUTOMATION_DEFINITION_BYTES_MAX", "AUTOMATION_NODES_MAX",
           "AUTOMATION_CONDITION_DEPTH_MAX", "AUTOMATION_CONDITIONS_MAX", "AUTOMATION_TARGET_FANOUT_MAX",
@@ -89,9 +91,14 @@ def check_runtime():
     unsupported = {k for k, v in acts.items() if v["status"] == "unsupported"}
     if unsupported != UNSUPPORTED:
         errs.append("unsupported actions must be exactly %s (got %s)" % (sorted(UNSUPPORTED), sorted(unsupported)))
+    after_8c = os.path.isfile(P(RUNS_8C))
+    want_actions = {} if after_8c else UNAVAILABLE_ACTIONS
+    want_triggers = {"test.result": "9B"} if after_8c else UNAVAILABLE_TRIGGERS
     unavailable = {k: v["owner"] for k, v in acts.items() if v["status"] == "unavailable"}
-    if unavailable != UNAVAILABLE_ACTIONS:
-        errs.append("unavailable actions must be %s (got %s)" % (UNAVAILABLE_ACTIONS, unavailable))
+    if unavailable != want_actions:
+        errs.append("unavailable actions must be %s (got %s)" % (want_actions, unavailable))
+    if after_8c and acts.get("agent.invoke", {}).get("status") != "supported":
+        errs.append("agent.invoke must be supported once the 8C runtime exists")
     for verb in ("create", "update", "assign", "move", "label", "notify", "schedule", "archive", "relate"):
         if acts.get("task.%s" % verb, {}).get("status") != "supported":
             errs.append("task.%s must be supported (AUTO-005)" % verb)
@@ -99,8 +106,8 @@ def check_runtime():
         if acts.get("project.%s" % verb, {}).get("status") != "supported":
             errs.append("project.%s must be supported (AUTO-005)" % verb)
     trig = {k: v["owner"] for k, v in d["triggers"].items() if v["status"] == "unavailable"}
-    if trig != UNAVAILABLE_TRIGGERS:
-        errs.append("unavailable triggers must be %s (got %s)" % (UNAVAILABLE_TRIGGERS, trig))
+    if trig != want_triggers:
+        errs.append("unavailable triggers must be %s (got %s)" % (want_triggers, trig))
     for kind in ("record.created", "record.field_changed", "record.status_changed", "comment.created",
                  "approval.decided", "integration.record_created", "schedule", "date", "manual"):
         if d["triggers"].get(kind, {}).get("status") != "available":
@@ -117,8 +124,13 @@ def check_runtime():
             errs.append("the compiler must refuse %s with %s (got %s)" % (name, code, p[name]))
     if p["script"].get("ok"):
         errs.append("an expression-like value must be refused, never evaluated")
-    if p["agent_step"].get("unavailable") != ["8C"] or p["test_trigger"].get("unavailable") != ["9B"]:
-        errs.append("agent steps and test-result triggers must compile as unavailable boundaries (8C, 9B)")
+    if p["test_trigger"].get("unavailable") != ["9B"]:
+        errs.append("test-result triggers must compile as an unavailable boundary (9B)")
+    if after_8c:
+        if "8C" in (p["agent_step"].get("unavailable") or []):
+            errs.append("agent steps must compile as real steps once the 8C runtime exists")
+    elif p["agent_step"].get("unavailable") != ["8C"]:
+        errs.append("agent steps must compile as an unavailable boundary (8C)")
     adr = read(P(ADR))
     if "| Project | update, notify, schedule, archive" not in adr or "create, assign, move, label, relate" not in adr:
         errs.append("ADR-0046 must publish the action matrix the compiler enforces")
@@ -141,7 +153,7 @@ def check_engine():
     # 8B extends the engine once (AgentService extends AutomationService, phase8b.py).
     agents = P("packages/work/src/agents/service.ts")
     head = "return new AutomationService(" in factory or (
-        "return new AgentService(" in factory and os.path.isfile(agents)
+        ("return new AgentService(" in factory or "return new AgentRunService(" in factory) and os.path.isfile(agents)
         and "export class AgentService extends AutomationService" in read(agents))
     if not head or "export class AutomationService extends AiGatewayService" not in service:
         errs.append("AutomationService must extend the gateway and be the chain head the factory returns")
@@ -210,7 +222,8 @@ def check_migration():
             errs.append("0062 down lacks %s" % term)
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
     # Later migrations are held by later validators (8B adds 0064, held by phase8b.py).
-    later_owned = {"0064_agent_profiles_connectors.up.sql": "phase8b.py"}
+    later_owned = {"0064_agent_profiles_connectors.up.sql": "phase8b.py",
+                   "0065_agent_runs.up.sql": "phase8c.py"}
     tail = [n for n in names if n > "0063_automation_checkpoint_refs.up.sql"]
     if "0062_automation_engine.up.sql" not in names or "0063_automation_checkpoint_refs.up.sql" not in names or any(
             n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])) for n in tail):

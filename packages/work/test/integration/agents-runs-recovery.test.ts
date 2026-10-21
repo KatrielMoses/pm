@@ -164,8 +164,14 @@ describe('agent runs (8C): crashes, reconciliation, and duplicates', () => {
     const held = (dispatches(r.agent.peer)[0]!.body.credential as { token: string }).token;
     const early = (await credentialCaller(env, held))!;
     await expect(
-      env.svc.agentRunPostEvent(early, w.ws, r.run, { key: 'e0', kind: 'progress', text: 'Working.' }),
-    ).rejects.toEqual(expect.objectContaining({ issues: [expect.objectContaining({ code: 'run_unavailable' })] }));
+      env.svc.agentRunPostEvent(early, w.ws, r.run, {
+        key: 'e0',
+        kind: 'progress',
+        text: 'Working.',
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining({ issues: [expect.objectContaining({ code: 'run_unavailable' })] }),
+    );
     await reconcile(r.run, 'sent');
     expect(dispatches(r.agent.peer)).toHaveLength(1);
     expect((await view(r.run)).state).toBe('running');

@@ -293,7 +293,13 @@ export class AutomationService extends AiGatewayService {
   protected async invokeAgentForAutomation(
     _tx: WorkspaceTransaction,
     _p: Principal,
-    _input: { taskPublicId: string; profilePublicId: string; automationRunId: string; operationId: string; node: string },
+    _input: {
+      taskPublicId: string;
+      profilePublicId: string;
+      automationRunId: string;
+      operationId: string;
+      node: string;
+    },
   ): Promise<{ runPublicId: string }> {
     throw new StepRefused('unavailable', 'action_unavailable');
   }
@@ -303,7 +309,9 @@ export class AutomationService extends AiGatewayService {
     _p: Principal,
     agents: string[],
   ): Promise<Array<ReturnType<typeof issue>>> {
-    return agents.length ? [issue('/steps', 'action_unavailable', 'Agent workflows are not available here.')] : [];
+    return agents.length
+      ? [issue('/steps', 'action_unavailable', 'Agent workflows are not available here.')]
+      : [];
   }
 
   get automationLimits(): DefinitionLimits {
@@ -1119,7 +1127,11 @@ export class AutomationService extends AiGatewayService {
           });
         const resolved = await this.#resolveDraft(tx, p, a, c, 'activation');
         // 8C: an agent step names a real, turned-on agent the activator can see.
-        const agentRefs = (((a.draft.definition as { steps?: unknown }).steps ?? []) as Array<Record<string, unknown>>)
+        const agentRefs = (
+          ((a.draft.definition as { steps?: unknown }).steps ?? []) as Array<
+            Record<string, unknown>
+          >
+        )
           .filter((s) => s.type === 'action' && s.action === 'agent.invoke')
           .map((s) => String((s.params as Record<string, unknown> | undefined)?.agent ?? ''));
         const agentIssues = await this.automationAgentIssues(tx, p, agentRefs);
@@ -3321,7 +3333,8 @@ export class AutomationService extends AiGatewayService {
               .where('id', '=', run.trigger_record_id)
               .executeTakeFirst()
           : null;
-        if (!trig || trig.record_type !== 'task') throw new StepRefused('validation_failed', 'no_trigger_record');
+        if (!trig || trig.record_type !== 'task')
+          throw new StepRefused('validation_failed', 'no_trigger_record');
         await this.loadTask(tx, p, trig.public_id);
         const out = await this.invokeAgentForAutomation(tx, p, {
           taskPublicId: trig.public_id,

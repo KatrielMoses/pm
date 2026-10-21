@@ -165,8 +165,8 @@ def check_invariants():
         errs.append("FileService must extend LiveService (4C, then 4D, then 4E, in the service chain)")
     factory = read(P("packages/work/src/factory.ts"))
     # The factory builds the top of the chain, now including the 6E MCP access service.
-    if not re.search(r"\}\): (FileService|SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService|McpAccessService|AiGatewayService|AutomationService|AgentService) \{", factory) or not re.search(
-            r"return new (FileService|SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService|McpAccessService|AiGatewayService|AutomationService|AgentService)\(", factory):
+    if not re.search(r"\}\): (FileService|SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService|McpAccessService|AiGatewayService|AutomationService|AgentService|AgentRunService) \{", factory) or not re.search(
+            r"return new (FileService|SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService|McpAccessService|AiGatewayService|AutomationService|AgentService|AgentRunService)\(", factory):
         errs.append("createWorkService must build and return the FileService (or the 5A/5B/5D service chain on top of it)")
     elif ("PortfolioService" in factory or "MetricService" in factory or "ReportService" in factory) and "export class GoalCore extends SearchService" not in read(
             P("packages/work/src/goals/goal-core.ts")):

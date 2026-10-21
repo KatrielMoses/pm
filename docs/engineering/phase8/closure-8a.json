@@ -103,7 +103,7 @@
       "accepted_by": [
         "adr:0046#D13"
       ],
-      "note": "Record creation, field and status changes, comments, approvals, integration-created tasks, dates, schedules, and manual runs are wired to committed events and the scheduler; test-result (9B) and agent-result (8C) triggers are typed boundaries refused at activation.",
+      "note": "Record creation, field and status changes, comments, approvals, integration-created tasks, dates, schedules, and manual runs are wired to committed events and the scheduler; test-result (9B) and agent-result (8C) triggers are typed boundaries refused at activation. Reconciled by Phase 8C (ADR-0048): the agent-result trigger is available and fires on agents.agent_run.output_returned with the automation causation kept for the loop guard; test-result stays 9B.",
       "evidence": [
         {
           "file": "packages/work/src/automation/definition.ts",
@@ -111,7 +111,7 @@
         },
         {
           "file": "packages/work/src/automation/definition.ts",
-          "contains": "'agent.result': { status: 'unavailable', records: ['task'], owner: '8C' },"
+          "contains": "'agent.result': { status: 'available', records: ['task'] },"
         },
         {
           "file": "packages/work/src/automation/service.ts",
@@ -209,11 +209,11 @@
       "accepted_by": [
         "catalog:contributing"
       ],
-      "note": "A typed agent-workflow step: saved in drafts, refused at activation as unavailable until the 8C runtime; no agent runner is built.",
+      "note": "A typed agent-workflow step: saved in drafts, refused at activation as unavailable until the 8C runtime; no agent runner is built. Reconciled by Phase 8C (ADR-0048, closure-8c AUTO-007): the step admits a run through the one 8C admission as the automation owner (agent.assign and an existing assignment required); its success means the run was admitted, never that the agent finished.",
       "evidence": [
         {
           "file": "packages/work/src/automation/definition.ts",
-          "contains": "owner: '8C',"
+          "contains": "command: 'invokeAgentForAutomation',"
         },
         {
           "file": "packages/work/test/integration/automations-platform.test.ts",

@@ -224,8 +224,8 @@ def check_invariants():
     if "export class MetricService extends PortfolioService" not in svc:
         errs.append("MetricService must extend PortfolioService (the 5B chain)")
     # 5D's ReportService extends the MetricService and is the top of the chain from 5D on.
-    if not re.search(r"\}\): (MetricService|ReportService|PublicApiService|CalendarService|McpAccessService|AiGatewayService|AutomationService|AgentService) \{", factory) or not re.search(
-            r"return new (MetricService|ReportService|PublicApiService|CalendarService|McpAccessService|AiGatewayService|AutomationService|AgentService)\(", factory):
+    if not re.search(r"\}\): (MetricService|ReportService|PublicApiService|CalendarService|McpAccessService|AiGatewayService|AutomationService|AgentService|AgentRunService) \{", factory) or not re.search(
+            r"return new (MetricService|ReportService|PublicApiService|CalendarService|McpAccessService|AiGatewayService|AutomationService|AgentService|AgentRunService)\(", factory):
         errs.append("createWorkService must build and return the MetricService (or the 5D ReportService on it)")
     core = P("packages/work/src/insights/report-core.ts")
     if os.path.isfile(core):

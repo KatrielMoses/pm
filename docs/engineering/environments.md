@@ -388,6 +388,14 @@ worker process is a startup error. All identities of one process must target the
 | `AGENT_CONNECTOR_RESPONSE_MAX_BYTES` | optional | optional | default 65536 (1024–1048576); bytes of one handshake answer; more is refused, never truncated (0D `AGENT_CONNECTOR_RESPONSE_MAX_BYTES`, 8B) |
 | `AGENT_CONNECTOR_TESTS_PER_HOUR` | optional | optional | default 20 (1–200); connector tests of one profile per hour, reserved under the connector lock (0D `AGENT_CONNECTOR_TESTS_PER_HOUR`, 8B) |
 | `AGENT_CONNECTOR_TRANSPORT` | optional | optional | default `none`; `fixture` lets connector tests reach the synthetic local agent peers over loopback (tests and the browser suite). Refused in deployed environments; no live connector transport exists until an approved secret store and credentials do (DQ-28) (0D `AGENT_CONNECTOR_TRANSPORT`, 8B) |
+| `AGENT_RUNS_ACTIVE_MAX` | optional | optional | default 10 (1–200); open agent runs per workspace, reserved under a workspace lock at admission (0D `AGENT_RUNS_ACTIVE_MAX`, 8C) |
+| `AGENT_RUN_RETRIES_MAX` | optional | optional | default 3 (0–10); human retries of one logical run (each a linked operation with the same counters and deadline) (0D `AGENT_RUN_RETRIES_MAX`, 8C) |
+| `AGENT_RUN_EVENTS_MAX` | optional | optional | default 500 (10–5000); progress events stored for one run; more are refused, never dropped silently (0D `AGENT_RUN_EVENTS_MAX`, 8C) |
+| `AGENT_RUN_EVENT_TEXT_MAX_CHARS` | optional | optional | default 2000 (100–2000); characters of one progress or commentary event (0D `AGENT_RUN_EVENT_TEXT_MAX_CHARS`, 8C) |
+| `AGENT_ARTIFACT_MAX_BYTES` | optional | optional | default 262144 (1024–1048576); bytes of one draft artifact version (Markdown, plain text, or JSON; hash-checked) (0D `AGENT_ARTIFACT_MAX_BYTES`, 8C) |
+| `AGENT_RUN_OUTPUT_MAX_BYTES` | optional | optional | default 1048576 (1024–10485760); total artifact bytes one run may return (0D `AGENT_RUN_OUTPUT_MAX_BYTES`, 8C) |
+| `AGENT_RUN_CREDENTIAL_TTL_SECONDS` | optional | optional | default 900 (60–3600); lifetime of one run-bound credential, never past the run's deadline; revoked earlier on pause, wait, cancel, stop, withdrawal, or end (0D `AGENT_RUN_CREDENTIAL_TTL_SECONDS`, 8C) |
+| `AGENT_RUN_POLL_WAIT_SECONDS` | optional | optional | default 20 (0–30); longest wait of one progress long poll; access is decided again on every check (0D `AGENT_RUN_POLL_WAIT_SECONDS`, 8C) |
 | `USAGE_WARNING_THRESHOLDS` | optional | optional | default `8000,10000`; ascending basis points of the hard AI spend limit at which owners and administrators are notified (0D `USAGE_WARNING_THRESHOLDS`, owner 7A) |
 | `AI_HISTORY_RETENTION_DAYS` | optional | — | unset by default: AI content is kept until the run's initiator departs or the workspace is deleted (OD-36 undecided). When set, the hourly sweep erases older prompts, outputs, and context references; usage and audit facts remain |
 

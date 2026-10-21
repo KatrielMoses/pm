@@ -138,7 +138,7 @@ describe('agent runs API (8C)', () => {
           ...(init.body ? { payload: init.body } : {}),
         });
         bodies.push(r.body);
-        let body: unknown = null;
+        let body: unknown;
         try {
           body = JSON.parse(r.body);
         } catch {

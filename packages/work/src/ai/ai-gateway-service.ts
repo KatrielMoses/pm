@@ -3527,7 +3527,11 @@ export class AiGatewayService extends McpAccessService {
             onBehalfOfMembershipId: p.membershipId,
           }
         : agent
-          ? { type: 'agent', id: context.effectivePrincipal.id, onBehalfOfMembershipId: p.membershipId }
+          ? {
+              type: 'agent',
+              id: context.effectivePrincipal.id,
+              onBehalfOfMembershipId: p.membershipId,
+            }
           : { type: 'human', id: p.membershipId },
       ...(rerunOf ? { rerunOfOperationId: rerunOf } : {}),
     });
@@ -3564,10 +3568,10 @@ export class AiGatewayService extends McpAccessService {
           : agent
             ? 'agent'
             : caller.delegation
-            ? caller.delegation.sourceKind === 'mcp'
-              ? 'mcp'
-              : 'api'
-            : 'ui',
+              ? caller.delegation.sourceKind === 'mcp'
+                ? 'mcp'
+                : 'api'
+              : 'ui',
         delegation_principal_type: caller.delegation ? caller.delegation.principalType : null,
         delegation_token_id: caller.delegation ? caller.delegation.tokenId : null,
         prompt_text: prep.prompt,

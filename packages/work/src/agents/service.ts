@@ -238,7 +238,11 @@ export class AgentService extends AutomationService {
   // Loading
   // ---------------------------------------------------------------------------------------------
 
-  protected async agRows(tx: WorkspaceTransaction, where: { publicId?: string; id?: string }, lock = false) {
+  protected async agRows(
+    tx: WorkspaceTransaction,
+    where: { publicId?: string; id?: string },
+    lock = false,
+  ) {
     let q = tx.db
       .selectFrom('agents.agent_profile as a')
       .innerJoin('core.record as r', 'r.id', 'a.id')
@@ -382,7 +386,11 @@ export class AgentService extends AutomationService {
     return out;
   }
 
-  protected async agFind(tx: WorkspaceTransaction, kind: ScopeKind, pub: string): Promise<ScopeItem | null> {
+  protected async agFind(
+    tx: WorkspaceTransaction,
+    kind: ScopeKind,
+    pub: string,
+  ): Promise<ScopeItem | null> {
     if (kind === 'integration') {
       const id = await this.connectionIdOf(tx, pub);
       return id ? { kind, id, publicId: pub } : null;
@@ -407,7 +415,11 @@ export class AgentService extends AutomationService {
    * Integrations: `view` when the person can see the connection (its records keep their own
    * authorization). Null when it is not readable now.
    */
-  protected async agLevelOn(tx: WorkspaceTransaction, p: Principal, item: ScopeItem): Promise<Level | null> {
+  protected async agLevelOn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    item: ScopeItem,
+  ): Promise<Level | null> {
     try {
       if (item.kind === 'integration')
         return (await this.connectionVisibleTo(tx, p, item.id)) ? 'view' : null;
@@ -1401,7 +1413,10 @@ export class AgentService extends AutomationService {
     );
   }
 
-  protected async agItemsOf(tx: WorkspaceTransaction, g: Pick<Grants, ScopeKind>): Promise<ScopeItem[]> {
+  protected async agItemsOf(
+    tx: WorkspaceTransaction,
+    g: Pick<Grants, ScopeKind>,
+  ): Promise<ScopeItem[]> {
     const out: ScopeItem[] = [];
     for (const kind of ['brand', 'project', 'record', 'integration'] as const)
       for (const id of g[kind]) {
@@ -2937,10 +2952,20 @@ export class AgentService extends AutomationService {
   }
 
   /** 8C: open runs of a withdrawn assignment end; their credentials stop at once. */
-  protected async onAgentAssignmentWithdrawn(_tx: WorkspaceTransaction, _assignmentId: string): Promise<void> {}
+  protected async onAgentAssignmentWithdrawn(
+    _tx: WorkspaceTransaction,
+    _assignmentId: string,
+  ): Promise<void> {}
 
   /** Agent execution does not exist yet (8C): the endpoint refuses truthfully and changes nothing. */
-  async startAgentRun(caller: Caller, ws: unknown, tsk: unknown, agt: unknown, _body?: unknown, _req?: Mutation): Promise<unknown> {
+  async startAgentRun(
+    caller: Caller,
+    ws: unknown,
+    tsk: unknown,
+    agt: unknown,
+    _body?: unknown,
+    _req?: Mutation,
+  ): Promise<unknown> {
     this.#assignScope(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const t = await this.loadTask(tx, p, tsk);

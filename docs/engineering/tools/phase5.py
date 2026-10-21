@@ -118,7 +118,7 @@ def check_composition():
     )
     top = any(
         f"return new {service}(" in factory
-        for service in ("PublicApiService", "CalendarService", "McpAccessService", "AiGatewayService", "AutomationService", "AgentService")
+        for service in ("PublicApiService", "CalendarService", "McpAccessService", "AiGatewayService", "AutomationService", "AgentService", "AgentRunService")
     )
     if not extends or top is False:
         errs.append(

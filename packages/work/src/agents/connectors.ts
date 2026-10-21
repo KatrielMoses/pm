@@ -383,8 +383,10 @@ export async function dispatchRun(
       code: name === 'TimeoutError' || name === 'AbortError' ? 'timeout' : 'network',
     };
   }
-  if (res.status >= 300 && res.status < 400) return { ok: false, sent: true, code: 'redirect_refused' };
-  if (res.status === 401 || res.status === 403) return { ok: false, sent: true, code: 'unauthorized' };
+  if (res.status >= 300 && res.status < 400)
+    return { ok: false, sent: true, code: 'redirect_refused' };
+  if (res.status === 401 || res.status === 403)
+    return { ok: false, sent: true, code: 'unauthorized' };
   if (res.status < 200 || res.status >= 300) return { ok: false, sent: true, code: 'http_status' };
   let text: string | null;
   try {
@@ -413,8 +415,11 @@ export async function dispatchRun(
   }
   if (target.kind === 'mcp') {
     const rpc = parsed as Record<string, unknown>;
-    if (rpc?.jsonrpc !== '2.0' || rpc.id !== 1) return { ok: false, sent: true, code: 'malformed_response' };
+    if (rpc?.jsonrpc !== '2.0' || rpc.id !== 1)
+      return { ok: false, sent: true, code: 'malformed_response' };
     parsed = rpc.result;
   }
-  return isAck(parsed) ? { ok: true, status: res.status } : { ok: false, sent: true, code: 'ack_invalid' };
+  return isAck(parsed)
+    ? { ok: true, status: res.status }
+    : { ok: false, sent: true, code: 'ack_invalid' };
 }
