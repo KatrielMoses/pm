@@ -1,6 +1,9 @@
 import { api, ApiError } from '../api.ts';
 
-/** Phase 8B agents: profiles, starter templates, the tool registry, connectors, and assignments. */
+/**
+ * Phase 8B agents: profiles, starter templates, the tool registry, connectors, and assignments;
+ * Phase 8C runs: preview, start, progress, draft artifacts, controls, health, and the emergency stop.
+ */
 
 export interface Issue {
   pointer: string;
@@ -15,9 +18,126 @@ export interface Readiness {
 }
 
 export interface Execution {
-  available: false;
+  available: boolean;
   owner: '8C';
   note: string;
+}
+
+/** Phase 8C runs. `ready_for_review` is never acceptance: a person reviews in 8D. */
+export type RunState =
+  'queued' | 'running' | 'waiting' | 'failed' | 'cancelled' | 'ready_for_review';
+
+export interface RunTool {
+  name: string;
+  version: string;
+  tool_class: string;
+  approval_class: string;
+  mode: 'runs' | 'approval_required';
+}
+
+export interface RunPreview {
+  profile: { id: string; name: string; kind: 'internal' | 'external' };
+  scope: ScopeView;
+  tools: RunTool[];
+  limits: Record<string, number>;
+  costs: { measured: string | null; reported: string | null };
+  refusals: Issue[];
+  can_start: boolean;
+}
+
+export interface RunArtifact {
+  key: string;
+  version: number;
+  title: string;
+  media_type: string;
+  byte_size: number;
+  sha256: string;
+  producer: 'internal' | 'external';
+  created_at: string;
+}
+
+export interface AgentRun {
+  id: string;
+  task: { id: string };
+  profile: { id: string; name: string; kind: 'internal' | 'external' };
+  state: RunState;
+  waiting: string | null;
+  paused_by: 'human' | 'emergency_stop' | null;
+  review: { required: true; owner: '8D' } | null;
+  attempt: number;
+  failure: {
+    terminal_reason: string | null;
+    code: string | null;
+    liability: Record<string, unknown> | null;
+  } | null;
+  waiting_reasons: string[];
+  result: { status: 'completed' | 'failed'; summary: string } | null;
+  limits: Record<string, unknown>;
+  usage: {
+    tool_calls: number;
+    artifacts: number;
+    output_bytes: number;
+    deadline_at: string | null;
+  };
+  costs: {
+    measured: { micros: number; basis: 'measured' } | null;
+    reported: { micros: number; currency: string; label: string } | null;
+  };
+  artifacts: RunArtifact[];
+  tool_calls: Array<{
+    sequence: number;
+    tool: string;
+    version: string;
+    tool_class: string;
+    decision: string;
+    code: string | null;
+    duration_ms: number | null;
+    at: string;
+  }>;
+  scope: ScopeView;
+  capabilities: { pause: boolean; resume: boolean; cancel: boolean; retry: boolean; accept: false };
+  created_at: string;
+  ended_at: string | null;
+  version: number;
+}
+
+export interface RunEvent {
+  seq: number;
+  kind: string;
+  source: 'agent' | 'system' | 'human';
+  /** Agent progress and commentary are the agent's own notes, never verified facts. */
+  verified: boolean;
+  text: string | null;
+  data: Record<string, unknown>;
+  at: string;
+}
+
+export interface RunEvents {
+  events: RunEvent[];
+  state: RunState;
+  waiting: string | null;
+  cursor: number;
+  ended: boolean;
+}
+
+export interface ArtifactVersions {
+  run: string;
+  key: string;
+  draft: true;
+  versions: Array<Omit<RunArtifact, 'key'> & { content: string }>;
+}
+
+export interface EmergencyStop {
+  stopped: boolean;
+  since: string | null;
+  epoch: number;
+  report?: { paused: number; finishing: number; already: number; not_stoppable: number };
+}
+
+export interface AgentHealth {
+  window_days: number;
+  runs: Record<RunState, number>;
+  emergency_stop: EmergencyStop & { can_trigger: boolean };
 }
 
 export interface ScopeView {
@@ -305,6 +425,73 @@ export const agentsClient = {
         },
       )
     ).body.data.assignment,
+  runs: async (ws: string, task: string) =>
+    (
+      await api<{ data: { task: string; items: AgentRun[] } }>(
+        'GET',
+        `${w(ws)}/tasks/${enc(task)}/agent-runs`,
+      )
+    ).body.data.items,
+  runPreview: async (ws: string, task: string, agent: string) =>
+    (
+      await api<{ data: RunPreview }>(
+        'GET',
+        `${w(ws)}/tasks/${enc(task)}/agent-run-preview?profile=${enc(agent)}`,
+      )
+    ).body.data,
+  startRun: async (ws: string, task: string, agent: string, confirm: boolean, key: string) =>
+    (
+      await api<{ data: { run: AgentRun } }>(
+        'POST',
+        `${w(ws)}/tasks/${enc(task)}/agents/${enc(agent)}:run`,
+        { body: confirm ? { confirm: true } : {}, headers: headers(key) },
+      )
+    ).body.data.run,
+  run: async (ws: string, run: string) =>
+    (await api<{ data: { run: AgentRun } }>('GET', `${w(ws)}/agent-runs/${enc(run)}`)).body.data
+      .run,
+  runEvents: async (ws: string, run: string, after: number, wait: number) =>
+    (
+      await api<{ data: RunEvents }>(
+        'GET',
+        `${w(ws)}/agent-runs/${enc(run)}/events?after=${after}&wait=${wait}`,
+      )
+    ).body.data,
+  artifact: async (ws: string, run: string, key: string) =>
+    (
+      await api<{ data: ArtifactVersions }>(
+        'GET',
+        `${w(ws)}/agent-runs/${enc(run)}/artifacts/${enc(key)}`,
+      )
+    ).body.data,
+  control: async (
+    ws: string,
+    run: string,
+    verb: 'pause' | 'resume' | 'cancel' | 'retry',
+    key: string,
+  ) =>
+    (
+      await api<{ data: { run: AgentRun } }>('POST', `${w(ws)}/agent-runs/${enc(run)}:${verb}`, {
+        body: {},
+        headers: headers(key),
+      })
+    ).body.data.run,
+  health: async (ws: string) =>
+    (await api<{ data: AgentHealth }>('GET', `${w(ws)}/agent-health`)).body.data,
+  emergencyStop: async (ws: string, reason: string, key: string) =>
+    (
+      await api<{ data: EmergencyStop }>('POST', `${w(ws)}/agent-emergency-stop`, {
+        body: reason.trim() ? { reason: reason.trim() } : {},
+        headers: headers(key),
+      })
+    ).body.data,
+  restart: async (ws: string, key: string) =>
+    (
+      await api<{ data: EmergencyStop }>('POST', `${w(ws)}/agent-emergency-stop/restart`, {
+        body: {},
+        headers: headers(key),
+      })
+    ).body.data,
 };
 
 /** A sentence for the person (offline, conflicts, and validation get their own wording). */

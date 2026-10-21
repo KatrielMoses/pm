@@ -5291,3 +5291,36 @@ nav.tabs a[aria-current='page'] {
     border-bottom: 1px solid CanvasText;
   }
 }
+
+/* ---- Phase 8C agent runs (UXD-34) -----------------------------------------------------------
+   A run that is ready for review uses a neutral chip (never the success tick): output to review
+   is not a finished task. Timelines wrap; drafts scroll inside their own box. */
+.au-chip-review::before {
+  content: '◇ ';
+}
+.ag-runs,
+.ag-run,
+.ag-run-detail {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.ag-run {
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.ag-timeline {
+  padding-inline-start: var(--space-3);
+  overflow-wrap: anywhere;
+}
+.ag-artifact {
+  max-height: 50vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (forced-colors: active) {
+  .ag-run {
+    border-bottom: 1px solid CanvasText;
+  }
+}

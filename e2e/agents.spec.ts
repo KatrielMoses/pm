@@ -9,15 +9,19 @@ import { createBrand, createWorkspace, expectAccessible, goTo, owner } from './s
  * processes and PostgreSQL. Nothing about agents is stubbed: a profile is created from a starter,
  * scoped, connected to a deterministic local peer (synthetic; never a real agent), tested by the
  * worker after confirmation, turned on, and assigned to a task through the structured preview.
- * Nothing runs an agent (8C). Key states are checked with keyboard and axe, 320 px and 200% zoom
+ * 8C runs an assigned agent against the same peers. Key states are checked with keyboard and axe, 320 px and 200% zoom
  * (half width), forced colours with reduced motion, and an offline save.
  */
 
 const admin = async (sql: string, params: unknown[] = []) =>
   (await queryUrl(process.env.PM_E2E_ADMIN_URL!, sql, params)).rows as Array<Record<string, any>>;
 
-/** Configures a named synthetic peer on the local connector fixture. */
-async function peer(name: string, secret: string) {
+/**
+ * Configures a named synthetic peer on the local connector fixture. 8C: `run` scripts what the
+ * peer does with a dispatch (`complete` works through the product's callbacks; `ack` only
+ * acknowledges).
+ */
+async function peer(name: string, secret: string, run?: 'complete' | 'ack') {
   const r = await fetch(`${process.env.PM_E2E_AGENT_URL}/control/peers`, {
     method: 'POST',
     headers: {
@@ -29,6 +33,7 @@ async function peer(name: string, secret: string) {
       peer: {
         kind: 'api',
         secret,
+        ...(run ? { run } : {}),
         tools: [
           { name: 'pm.tasks.get', version: '1' },
           { name: 'pm.documents.draft', version: '1' },
@@ -126,7 +131,7 @@ test('AT-632 Phase 8B agent journey: starter, scope, a synthetic connector test,
   await expect(readiness.getByText('Ready', { exact: true })).toBeVisible();
   await expect(readiness.getByText(/Verified against a local test agent only/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Active version 1' })).toBeVisible();
-  await expect(page.getByText(/Nothing runs yet/).first()).toBeVisible();
+  await expect(page.getByText(/Runs start from a task this agent is assigned to/)).toBeVisible();
   await expectAccessible(page, 'agent-active');
 
   // Offline: an edit is kept on this device and the person is told.
@@ -166,10 +171,12 @@ test('AT-632 Phase 8B agent journey: starter, scope, a synthetic connector test,
     [task],
   );
   expect(rows).toEqual([{ state: 'assigned' }]);
-  // No agent run exists: nothing was dispatched.
+  // No agent run exists in this workspace: nothing was dispatched (8C runs only when started).
   expect(
     await admin(
-      `SELECT count(*)::int AS n FROM exec.job WHERE kind LIKE 'agent%' AND kind <> 'agents.connector_test'`,
+      `SELECT count(*)::int AS n FROM exec.job j JOIN tenancy.workspace w ON w.id = j.workspace_id
+        WHERE w.public_id = $1 AND j.kind LIKE 'agent%' AND j.kind <> 'agents.connector_test'`,
+      [ws],
     ),
   ).toEqual([{ n: 0 }]);
 
@@ -304,4 +311,201 @@ test('AT-642 Phase 8B review 01: an assigner downgraded to view leaves their ass
   ).toBeVisible();
   await expect(hers.getByRole('form', { name: 'Assign an agent' })).toHaveCount(0);
   await mia.ctx.close();
+});
+
+/** A ready external agent on a synthetic peer, assigned to the task, all through the API. */
+async function readyAgent(
+  page: Page,
+  base: string,
+  brand: string,
+  task: string,
+  name: string,
+  run: 'complete' | 'ack',
+) {
+  const secret = `fixture-secret-${name}`;
+  const endpoint = await peer(name, secret, run);
+  const made = await api(page, 'POST', `${base}/agents`, { template: 'development' });
+  await api(
+    page,
+    'PATCH',
+    `${base}/agents/${made.id}`,
+    {
+      draft: {
+        ...made.draft,
+        scope: { brands: [brand] },
+        tools: [{ name: 'pm.tasks.get', version: '1' }],
+      },
+    },
+    made.version,
+  );
+  await api(page, 'POST', `${base}/agents/${made.id}/connector`, {
+    kind: 'api',
+    endpoint_url: endpoint,
+    secret,
+  });
+  const current = (await (await page.request.get(`${base}/agents/${made.id}`)).json()).data;
+  await api(page, 'POST', `${base}/agents/${made.id}:activate`, {}, current.version);
+  const t = await api(page, 'POST', `${base}/agents/${made.id}/connector:test`, { confirm: true });
+  await expect
+    .poll(
+      async () =>
+        (
+          await (
+            await page.request.get(`${base}/agents/${made.id}/connector-tests/${t.test.id}`)
+          ).json()
+        ).data.test.state,
+      { timeout: 30_000 },
+    )
+    .toBe('passed');
+  await api(page, 'POST', `${base}/tasks/${task}/agents`, {
+    profile: made.id,
+    goal: 'Draft the launch notes from the task.',
+    deliverable: 'Launch notes as a draft.',
+  });
+  return made.id as string;
+}
+
+test('AT-664 Phase 8C agent run journey: preview, start, progress, a draft artifact ready for review (never accepted), the task unchanged, accessibility', async ({
+  page,
+}, info) => {
+  test.setTimeout(240_000);
+  const { ws, base, brand, task } = await setup(page, info, 'agt8c');
+  const name = `run-${info.project.name}-${info.retry}-${Date.now() % 100000}`;
+  await readyAgent(page, base, brand, task, name, 'complete');
+  const status = async () =>
+    (
+      await admin(
+        `SELECT t.status_id FROM work.task t JOIN core.record r ON r.id = t.id WHERE r.public_id = $1`,
+        [task],
+      )
+    )[0]!.status_id;
+  const before = await status();
+
+  await page.goto(`/workspaces/${ws}/tasks/${task}`);
+  await expect(h1(page)).toHaveText('Write launch notes');
+  const runs = page.getByRole('region', { name: 'Runs' });
+  await expect(runs.getByText('No runs yet.')).toBeVisible();
+  await runs.getByRole('button', { name: 'Run Development agent' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Run Development agent?' });
+  const preview = dialog.getByRole('region', { name: 'Run preview' });
+  // The run reads only inside the assignment: here, the task itself.
+  await expect(preview.getByRole('list', { name: 'Run scope' })).toHaveText(/Write launch notes/);
+  await expect(preview.getByText(/runs \(read only\)/)).toBeVisible();
+  await expect(preview.getByText(/reported by Development agent/)).toBeVisible();
+  await expectAccessible(page, 'agent-run-preview');
+  await dialog.getByRole('button', { name: 'Start run' }).click();
+  await expect(
+    page.getByText(/was started\. Its output will be a draft for review/),
+  ).toBeAttached();
+
+  // The synthetic peer works through the callbacks with its run credential; the run ends ready.
+  const list = runs.getByRole('list', { name: 'Agent runs' });
+  const detail = page.getByRole('region', { name: 'Run of Development agent' });
+  await expect(detail.getByText('Started reading the task.')).toBeVisible({ timeout: 60_000 });
+  await expect(list.getByText('Ready for review', { exact: true })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(detail.getByText(/A person reviews it before it counts/)).toBeVisible();
+  // The agent's "done" is its own note, never a completion.
+  await expect(detail.getByText('Done! The task is complete.')).toBeVisible();
+  await expect(detail.getByRole('list', { name: 'Run progress' })).toContainText('(agent’s note)');
+  await expect(detail.getByText(/reported by Development agent, not measured/)).toBeVisible();
+  await expect(detail.getByRole('button', { name: /accept|approve|mark done/i })).toHaveCount(0);
+  await expectAccessible(page, 'agent-run-ready');
+  await detail.getByRole('button', { name: 'Notes' }).click();
+  const draft = page.getByRole('dialog', { name: 'Notes' });
+  await expect(draft.getByText(/has not been accepted/)).toBeVisible();
+  await expect(draft.getByLabel('Draft content')).toContainText('# Notes for Write launch notes');
+  await expectAccessible(page, 'agent-run-draft');
+  await draft.getByRole('button', { name: 'Close' }).click();
+
+  // Stored truthfully: succeeded operation, ready for review, nothing accepted, task unchanged.
+  expect(await status()).toBe(before);
+  const rows = await admin(
+    `SELECT o.execution_state, r.result_status, r.ended_at IS NOT NULL AS ended,
+            (SELECT count(*)::int FROM agents.agent_run_credential c WHERE c.run_id = r.id AND c.state = 'active') AS live_credentials
+       FROM agents.agent_run r JOIN exec.operation o ON o.id = r.current_operation_id
+       JOIN core.record t ON t.id = r.task_id WHERE t.public_id = $1`,
+    [task],
+  );
+  expect(rows).toEqual([
+    { execution_state: 'succeeded', result_status: 'completed', ended: true, live_credentials: 0 },
+  ]);
+
+  // Narrow widths, 200% zoom, forced colours, reduced motion.
+  const size = page.viewportSize() ?? { width: 1280, height: 800 };
+  for (const width of [320, Math.max(320, Math.floor(size.width / 2))]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`/workspaces/${ws}/tasks/${task}`);
+    await expect(h1(page)).toHaveText('Write launch notes');
+    await runs.getByRole('button', { name: 'Details' }).click();
+    await expect(detail.getByText('Done! The task is complete.')).toBeVisible();
+    await expectNoOverflow(page, `task run at ${width}px`);
+  }
+  await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
+  await expectAccessible(page, 'agent-run-narrow-forced');
+  await page.emulateMedia({ forcedColors: null, reducedMotion: null });
+  await page.setViewportSize(size);
+});
+
+test('AT-665 Phase 8C run controls and the emergency stop: pause, stop all agent work, allow again, resume, cancel @desktop-only', async ({
+  page,
+}, info) => {
+  test.setTimeout(240_000);
+  const { ws, base, brand, task } = await setup(page, info, 'agt8c-stop');
+  const name = `stop-${info.retry}-${Date.now() % 100000}`;
+  await readyAgent(page, base, brand, task, name, 'ack');
+
+  await page.goto(`/workspaces/${ws}/tasks/${task}`);
+  const runs = page.getByRole('region', { name: 'Runs' });
+  await runs.getByRole('button', { name: 'Run Development agent' }).click();
+  await page
+    .getByRole('dialog', { name: 'Run Development agent?' })
+    .getByRole('button', { name: 'Start run' })
+    .click();
+  const list = runs.getByRole('list', { name: 'Agent runs' });
+  const detail = page.getByRole('region', { name: 'Run of Development agent' });
+  // The peer only acknowledges: the run is running, waiting on the agent.
+  await expect(list.getByText('Running', { exact: true })).toBeVisible({ timeout: 60_000 });
+  await detail.getByRole('button', { name: 'Pause' }).click();
+  await expect(detail.getByText(/^Paused\. Nothing new is sent/)).toBeVisible();
+
+  // The emergency stop, from the Agents page (owner), after confirmation.
+  await goTo(page, 'Agents');
+  const card = page.getByRole('region', { name: 'Agent runs and emergency stop' });
+  await expect(card.getByText('Agents may run in this workspace.')).toBeVisible();
+  await card.getByRole('button', { name: 'Stop all agent work' }).click();
+  const confirm = page.getByRole('alertdialog', { name: 'Stop all agent work?' });
+  await confirm.getByLabel('Reason (optional)').fill('Browser journey');
+  await confirm.getByRole('button', { name: 'Stop all agent work' }).click();
+  await expect(card.getByText('Agent work is stopped', { exact: true })).toBeVisible();
+  await expect(card.getByText(/1 already paused/)).toBeAttached();
+  await expectAccessible(page, 'agents-emergency-stopped');
+  expect(
+    await admin(
+      `SELECT count(*)::int AS n FROM agents.agent_run_credential c JOIN tenancy.workspace w ON w.id = c.workspace_id
+        WHERE w.public_id = $1 AND c.state = 'active'`,
+      [ws],
+    ),
+  ).toEqual([{ n: 0 }]);
+  // The paused run stays waiting on the task.
+  await page.goto(`/workspaces/${ws}/tasks/${task}`);
+  await expect(list.getByText('Waiting', { exact: true })).toBeVisible();
+  await goTo(page, 'Agents');
+  await card.getByRole('button', { name: 'Allow agents to run again' }).click();
+  await expect(card.getByText('Agents may run in this workspace.')).toBeVisible();
+
+  // Runs stay paused until each is resumed; resume re-checks authority and sends again.
+  await page.goto(`/workspaces/${ws}/tasks/${task}`);
+  await runs.getByRole('button', { name: 'Details' }).click();
+  await expect(detail.getByText(/^Paused/)).toBeVisible();
+  await detail.getByRole('button', { name: 'Resume' }).click();
+  await expect(list.getByText('Running', { exact: true })).toBeVisible({ timeout: 60_000 });
+  await detail.getByRole('button', { name: 'Cancel run' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Cancel this run?' })
+    .getByRole('button', { name: 'Cancel run' })
+    .click();
+  await expect(list.getByText('Cancelled', { exact: true })).toBeVisible({ timeout: 60_000 });
+  await expectAccessible(page, 'agent-run-cancelled');
 });

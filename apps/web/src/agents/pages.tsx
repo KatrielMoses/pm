@@ -21,13 +21,15 @@ import {
   type ScopeView,
 } from './client.ts';
 import { readAgentDraft, writeAgentDraft } from './drafts.ts';
+import { AgentHealthCard, TaskAgentRuns } from './runs.tsx';
 
 /**
  * Phase 8B agents (UXD-33): the profile list with starter templates, the profile editor (typed
  * configuration: instructions, model, limits, registered tools with approvals no weaker than the
  * floor, and an explicit scope), activation, the connector (configure, a confirmed synthetic
  * test, disconnect), lifecycle, and the task Agent section (structured preview, assign, edit,
- * withdraw). Every control is a labelled field or button; nothing runs an agent here (8C).
+ * withdraw). Every control is a labelled field or button. Phase 8C adds runs to the task Agent
+ * section and agent health with the emergency stop to the list (./runs.tsx).
  */
 
 type Def = Record<string, unknown>;
@@ -344,10 +346,9 @@ function ScopeList({ scope, label }: { scope: ScopeView; label: string }) {
   );
 }
 
-const ExecutionNote = ({ assigned = false }: { assigned?: boolean }) => (
+const ExecutionNote = () => (
   <p className="hint ag-execution">
-    {assigned ? 'Assigned; execution available in Phase 8C.' : 'Execution available in Phase 8C.'}{' '}
-    Nothing runs yet, and nothing has been sent to an agent.
+    Runs start from a task this agent is assigned to. Its output is a draft for a person to review.
   </p>
 );
 
@@ -449,6 +450,7 @@ export function AgentsPage({ ws }: { ws: string }) {
           )}
         </section>
       ) : null}
+      {!archived ? <AgentHealthCard ws={ws} /> : null}
       {list?.capabilities.create && !archived ? (
         <section className="card au-section" aria-labelledby="ag-new-h">
           <h2 id="ag-new-h">New agent</h2>
@@ -1608,7 +1610,7 @@ export function TaskAgentSection({ ws, task }: { ws: string; task: string }) {
         setSaid('The assignment was updated.');
       } else {
         await agentsClient.assign(ws, task, briefBody(brief), keyFor(k));
-        setSaid('The agent was assigned. Nothing runs until phase 8C.');
+        setSaid('The agent was assigned. Start a run when you are ready.');
       }
       settle(k);
       setBrief(EMPTY_BRIEF);
@@ -1753,7 +1755,19 @@ export function TaskAgentSection({ ws, task }: { ws: string; task: string }) {
           <p className="empty-state">No agents assigned.</p>
         )
       ) : null}
-      {data && current.length ? <ExecutionNote assigned /> : null}
+      {data && current.length ? (
+        <TaskAgentRuns
+          ws={ws}
+          task={task}
+          startable={
+            data.capabilities.assign && data.execution.available
+              ? current
+                  .filter((x) => x.state === 'assigned')
+                  .map((x) => ({ id: x.profile.id, name: x.profile.name }))
+              : []
+          }
+        />
+      ) : null}
       {past.length ? (
         <details>
           <summary>Withdrawn ({past.length})</summary>

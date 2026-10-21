@@ -824,9 +824,9 @@ describe('applied-migration boundary: 0065 agent runs refuse a destructive rollb
       /0065 cannot be rolled back: 0 agent run\(s\), 1 emergency stop record\(s\), 0 agent model turn\(s\)/,
     );
     // The refusal changed nothing: the record and forced row-level security remain.
-    expect(
-      (await db.admin(`SELECT count(*)::int AS n FROM agents.emergency_stop`)).rows[0].n,
-    ).toBe(1);
+    expect((await db.admin(`SELECT count(*)::int AS n FROM agents.emergency_stop`)).rows[0].n).toBe(
+      1,
+    );
     expect(
       (
         await db.admin(
