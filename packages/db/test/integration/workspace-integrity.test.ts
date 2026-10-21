@@ -354,6 +354,13 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'agents.agent_connector_test',
       'agents.agent_assignment',
       'agents.agent_assignment_revision',
+      // Phase 8C agent runs and their events, tool calls, artifacts, credentials, and stops.
+      'agents.agent_run',
+      'agents.agent_run_event',
+      'agents.agent_tool_call',
+      'agents.agent_artifact',
+      'agents.agent_run_credential',
+      'agents.emergency_stop',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),

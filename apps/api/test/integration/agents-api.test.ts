@@ -322,9 +322,11 @@ describe('agents API (8B)', () => {
     );
     expect(revised.statusCode, revised.body).toBe(200);
     expect(revised.json().data.assignment.revision).toBe(2);
+    // 8C: runs exist; this internal agent is not ready (AI is not configured), so starting a run
+    // is refused truthfully and nothing is admitted.
     const run = await post(owner, `/tasks/${task}/agents/${internal.id}:run`, {});
-    expect(run.statusCode).toBe(503);
-    expect(run.json().error.code).toBe('dependency_unavailable');
+    expect(run.statusCode).toBe(409);
+    expect(run.json().error.code).toBe('conflict');
     const listed = await get(guest, `/tasks/${task}/agents`);
     expect(listed.statusCode, listed.body).toBe(200);
     expect(listed.json().data.capabilities.assign).toBe(false);

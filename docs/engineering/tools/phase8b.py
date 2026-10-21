@@ -317,11 +317,21 @@ def check_identifiers():
 
 def check_closure_and_boundaries(closure):
     errs = []
-    if closure.get("adr") != "0047" or closure.get("status") != "candidate":
-        errs.append("closure-8b.json must be the 8B candidate under ADR-0047 (not self-accepted)")
+    # The architect accepted 8B with review 01 (recorded by the 8C brief, never self-accepted):
+    # engineering scope only; derived blocks are not stored suspensions.
+    if closure.get("adr") != "0047" or closure.get("status") != "accepted":
+        errs.append("closure-8b.json must be the accepted 8B closure under ADR-0047")
+    acc = closure.get("accepted", {})
+    if (acc.get("head") != "e51b3f19ecf215e296d08c12c14649a4e1b2565d" or acc.get("ci_run") != "39502523692"
+            or acc.get("attempt") != 1 or acc.get("corrective_reviews_closed") != ["R1", "R2"]
+            or acc.get("totals", {}).get("integration") != 1150 or acc.get("totals", {}).get("browser") != 291
+            or "not stored suspensions" not in acc.get("boundaries", "")):
+        errs.append("the closure must record the architect's acceptance (e51b3f1, run 39502523692, attempt 1, totals, R1-R2, boundaries)")
     adr = read(P(ADR))
-    if not re.search(r"^Status: \*\*proposed\*\*", adr, re.M):
-        errs.append("ADR-0047 stays proposed until the architect reviews it")
+    status = next((l for l in adr.split("\n") if l.startswith("Status: ")), "")
+    if not (status.startswith("Status: **accepted** (engineering scope") and "e51b3f1" in status
+            and "39502523692" in status and "not production" in status and "not stored suspensions" in status):
+        errs.append("ADR-0047 must record the architect's acceptance at e51b3f1, run 39502523692, without production approval")
     for d in DECISIONS:
         if "\n| %s |" % d not in adr:
             errs.append("ADR-0047 lacks decision %s" % d)
@@ -347,7 +357,7 @@ def check_closure_and_boundaries(closure):
     web = read(P("apps/web/src/agents/pages.tsx"))
     if "Assigned; execution available in Phase 8C." not in web:
         errs.append("the task Agent section must say execution is available in Phase 8C")
-    return errs, "candidate under a proposed ADR; boundaries 8C/8D/10A/10B, production connectors and AI, manual, follow-ups"
+    return errs, "accepted at e51b3f1 (run 39502523692); boundaries 8C/8D/10A/10B, production connectors and AI, manual, follow-ups"
 
 
 def check_review01(closure):

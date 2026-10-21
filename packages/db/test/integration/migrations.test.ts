@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, the Phase 7 integration boundary 0060, the effect-recovery boundary 0061, the 8A automation boundary 0062, the 8A review 01 checkpoint boundary 0063, and the 8B agent boundary 0064 to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, the Phase 7 integration boundary 0060, the effect-recovery boundary 0061, the 8A automation boundary 0062, the 8A review 01 checkpoint boundary 0063, the 8B agent boundary 0064, and the 8C agent run boundary 0065 to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -128,11 +128,12 @@ describe('migrations from an empty database', () => {
     // usage periods, the automation notice type, and the automation AI caller); 8A corrective
     // review 01 adds 0063 (automation checkpoints keep references only; data, no catalog change); 8B adds
     // 0064 (agent profiles, revisions, scope and tool grants, connectors, connector tests, and task
-    // agent assignments with their revisions).
+    // agent assignments with their revisions); 8C adds 0065 (agent runs, progress events, tool calls,
+    // draft artifacts, run-bound credentials, the emergency stop, and the agent AI caller).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
       39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
-      62, 63, 64,
+      62, 63, 64, 65,
     ];
     // Functions and triggers are compared from the last Phase 6 boundary on (the Phase 7 steps).
     // Earlier accepted steps are compared on tables, constraints, grants, and policies only: the
@@ -185,7 +186,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped, to >= DEEP_FROM));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(64)).toEqual(await full(reference));
+      expect(at.get(65)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {
@@ -781,6 +782,58 @@ describe('applied-migration boundary: 0064 agent profiles refuse a destructive r
         )
       ).rows,
     ).toEqual([{ relforcerowsecurity: true }]);
+    expect((await migrator(db).status()).report.problems).toEqual([]);
+  });
+});
+
+describe('applied-migration boundary: 0065 agent runs refuse a destructive rollback (8C)', () => {
+  let db: TestDatabase;
+  beforeAll(async () => {
+    db = await createEmptyTestDatabase();
+  });
+  afterAll(async () => {
+    await db.drop();
+  });
+
+  it('rolls back to the exact 0064 catalog when empty and refuses, with counts, while emergency stop history exists', async () => {
+    await migrator(db).up({ to: 64 });
+    const before = (
+      await db.admin(
+        `SELECT count(*)::int AS n FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'agents' AND c.relkind = 'r'`,
+      )
+    ).rows[0].n;
+    await migrator(db).up({ to: 65 });
+    expect((await migrator(db).status()).report.problems).toEqual([]);
+    // An empty 0065 reverses cleanly and re-applies.
+    await migrator(db).down(64);
+    expect(
+      (
+        await db.admin(
+          `SELECT count(*)::int AS n FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'agents' AND c.relkind = 'r'`,
+        )
+      ).rows[0].n,
+    ).toBe(before);
+    await migrator(db).up({ to: 65 });
+    // An emergency stop record (inserted without its envelope: only the rollback guard is under test).
+    const ws = newUuidV7();
+    await db.admin(`SET session_replication_role = replica;
+      INSERT INTO agents.emergency_stop (id, workspace_id, action, epoch, actor_membership_id)
+      VALUES ('${newUuidV7()}', '${ws}', 'stop', 1, '${newUuidV7()}');
+      SET session_replication_role = origin;`);
+    await expect(migrator(db).down(64)).rejects.toThrow(
+      /0065 cannot be rolled back: 0 agent run\(s\), 1 emergency stop record\(s\), 0 agent model turn\(s\)/,
+    );
+    // The refusal changed nothing: the record and forced row-level security remain.
+    expect(
+      (await db.admin(`SELECT count(*)::int AS n FROM agents.emergency_stop`)).rows[0].n,
+    ).toBe(1);
+    expect(
+      (
+        await db.admin(
+          `SELECT relforcerowsecurity FROM pg_class WHERE oid IN ('agents.emergency_stop'::regclass, 'agents.agent_run'::regclass)`,
+        )
+      ).rows,
+    ).toEqual([{ relforcerowsecurity: true }, { relforcerowsecurity: true }]);
     expect((await migrator(db).status()).report.problems).toEqual([]);
   });
 });
