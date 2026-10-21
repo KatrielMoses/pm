@@ -112,6 +112,7 @@ export interface RunRow {
   operation_id: string;
   current_operation_id: string;
   attempt_number: number;
+  dispatch_generation: number;
   phase: 'start' | 'awaiting_model' | 'awaiting_agent' | 'finished';
   model_operation_id: string | null;
   deadline_at: Date | null;
@@ -155,7 +156,7 @@ type LiveDecision = {
 };
 
 type GuardOutcome =
-  | { outcome: 'go'; kind: 'internal' | 'external'; phase: RunRow['phase']; deadline: string; attempt: number }
+  | { outcome: 'go'; kind: 'internal' | 'external'; phase: RunRow['phase']; deadline: string; attempt: number; generation: number }
   | { outcome: 'finished'; status: 'completed' | 'failed' }
   | { outcome: 'paused' }
   | { outcome: 'authorization'; reasons: string[] }
@@ -359,6 +360,7 @@ export class AgentRunService extends AgentService {
     const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
     return {
       ...(r as unknown as RunRow),
+      dispatch_generation: Number(r.dispatch_generation),
       tool_calls_used: Number(r.tool_calls_used),
       artifacts_used: Number(r.artifacts_used),
       output_bytes_used: Number(r.output_bytes_used),
@@ -635,9 +637,10 @@ export class AgentRunService extends AgentService {
   // -------------------------------------------------------------------------------------------
 
   #tokenScope(caller: Caller) {
+    // A run credential is not a person: people's run routes are one opaque answer for it.
+    if (caller.delegation?.principalType === 'agent_run') throw new TenancyError('not_found');
     if (caller.delegation && !caller.delegation.scopes.includes('agents:execute'))
       throw new TenancyError('forbidden');
-    if (caller.delegation?.principalType === 'agent_run') throw new TenancyError('not_found');
   }
 
   /** What a run would be admitted with now: scope, tools, limits, readiness (no side effect). */
@@ -1293,9 +1296,24 @@ export class AgentRunService extends AgentService {
           issue('/', this.agCanConfigure(p) || ['assigner_authority', 'assigner_unavailable', 'task_ineligible', 'scope_lost', 'assignment_withdrawn'].includes(r) ? r : 'agent_not_ready', 'The run cannot continue with current authority.'),
         ),
       });
+    // Resume re-checks everything above and starts the work again with fresh credentials: an
+    // external agent gets a new dispatch (its earlier credential was revoked on pause); an
+    // internal run asks its model again if the paused turn was cancelled.
+    const modelOp = run.model_operation_id
+      ? await tx.db.selectFrom('exec.operation').select('execution_state').where('id', '=', run.model_operation_id).executeTakeFirst()
+      : null;
+    const restartModel = run.kind === 'internal' && (!modelOp || (isTerminalOp(modelOp.execution_state) && modelOp.execution_state !== 'succeeded'));
     await tx.db
       .updateTable('agents.agent_run')
-      .set({ pause_requested_at: null, paused_by: null, paused_by_membership_id: null, updated_at: new Date(), version: sql`version + 1` })
+      .set({
+        pause_requested_at: null,
+        paused_by: null,
+        paused_by_membership_id: null,
+        ...(run.kind === 'external' ? { phase: 'start', dispatch_generation: run.dispatch_generation + 1 } : {}),
+        ...(restartModel ? { phase: 'start', model_operation_id: null } : {}),
+        updated_at: new Date(),
+        version: sql`version + 1`,
+      })
       .where('id', '=', run.id)
       .execute();
     await transitionOperation(tx, {
@@ -1381,6 +1399,7 @@ export class AgentRunService extends AgentService {
       .set({
         current_operation_id: next.id,
         attempt_number: run.attempt_number + 1,
+        dispatch_generation: 0,
         phase: 'start',
         model_operation_id: null,
         result_status: null,
@@ -1743,6 +1762,7 @@ export class AgentRunService extends AgentService {
     const out = await this.inWorkspace(caller, ws, {}, async (tx, p) => {
       const run = await this.#credentialRun(tx, caller, runPublic);
       if (run.ended_at || isTerminalOp(run.op_state)) throw new TenancyError('not_found');
+      if (run.op_state === 'waiting' && run.op_waiting === 'reconciliation_required') return refuse('run_unavailable');
       return fn(tx, p, run);
     });
     if (out instanceof Refusal) throw out.err;
@@ -1869,6 +1889,7 @@ export class AgentRunService extends AgentService {
     if (!parsed.ok) throw invalid(...parsed.issues.map((i) => issue(i.pointer, i.code, i.message)));
     const out = await this.inWorkspace(caller, ws, {}, async (tx): Promise<{ type: 'agent_run_result_receipt'; status: string } | Refusal> => {
       const run = await this.#credentialRun(tx, caller, runPublic);
+      if (run.op_state === 'waiting' && run.op_waiting === 'reconciliation_required') return refuse('run_unavailable');
       const r = parsed.value;
       const late = run.ended_at || isTerminalOp(run.op_state) || r.attempt !== run.attempt_number || run.result_status;
       if (late) {
@@ -2057,6 +2078,7 @@ export class AgentRunService extends AgentService {
       phase: run.phase,
       deadline: new Date(run.deadline_at ?? Date.now()).toISOString(),
       attempt: run.attempt_number,
+      generation: run.dispatch_generation,
     };
   }
 
@@ -2064,7 +2086,11 @@ export class AgentRunService extends AgentService {
     const runId = ctx.job.payloadRef!;
     const opId = ctx.job.operationId!;
     const ws = ctx.job.workspaceId!;
-    const g = (await ctx.step('guard', async (tx) => ({ g: await this.#guard(tx as WorkspaceTransaction, runId, opId) }))).g;
+    // The live guard is decided again on every job attempt (never replayed from a checkpoint,
+    // including a job copied by reconciliation); work steps below are idempotent by run data.
+    const g = (
+      await ctx.step(`guard.${ctx.job.attemptNumber}`, async (tx) => ({ g: await this.#guard(tx as WorkspaceTransaction, runId, opId) }))
+    ).g;
     const decided = this.#decidedResult(g);
     if (decided) return decided;
     const go = g as Extract<GuardOutcome, { outcome: 'go' }>;
@@ -2084,7 +2110,9 @@ export class AgentRunService extends AgentService {
       return { state: 'succeeded' };
     }
     if (go.phase === 'start') {
-      await ctx.effect(`dispatch:${runId}:${go.attempt}`, AGENT_RUN_DISPATCH_DESTINATION, async () => {
+      // One logical dispatch per attempt and explicit resume: a restarted worker or a retried job
+      // reuses the same key (never a second send); only a person's resume opens a new one.
+      await ctx.effect(`dispatch:${runId}:${go.attempt}:${go.generation}`, AGENT_RUN_DISPATCH_DESTINATION, async () => {
         const plan = await this.d.tenant.withWorkspace(ws, { module: 'agents' }, (tx) =>
           this.#dispatchPlan(tx as WorkspaceTransaction, runId, opId),
         );
@@ -2152,7 +2180,7 @@ export class AgentRunService extends AgentService {
     if (!assigner) return;
     const taskPublic = (await this.publicOf(tx, run.task_id))!;
     await this.#invokeTool(tx, run, assigner, {
-      key: `internal:read:${run.attempt_number}:${ctx.job.attemptNumber}`,
+      key: `internal:read:${run.attempt_number}`,
       tool: 'pm.tasks.get',
       version: run.tools.find((t) => t.tool === 'pm.tasks.get')!.version,
       arguments: { task: taskPublic },
@@ -2302,7 +2330,7 @@ export class AgentRunService extends AgentService {
     const ws = await tx.db.selectFrom('tenancy.workspace').select('public_id').executeTakeFirstOrThrow();
     const base = `${this.agentDeps.productOrigin!.replace(/\/+$/, '')}/v1/workspaces/${ws.public_id}`;
     const runPath = `${base}/agent-runs/${run.run_public_id}`;
-    const dispatchId = `${run.run_public_id}.${run.attempt_number}`;
+    const dispatchId = `${run.run_public_id}.${run.attempt_number}.${run.dispatch_generation}`;
     const brief = await this.#brief(tx, run, live, assigner);
     await this.#event(tx, run, { kind: 'state', source: 'system', text: 'Dispatching to the agent.', data: { state: 'running' } });
     return {
@@ -2338,7 +2366,13 @@ export class AgentRunService extends AgentService {
       const run = await this.#run(tx, { currentOperationId: e.aggregate.id });
       if (!run || !data.state) return;
       if (isTerminalOp(data.state)) await this.#settle(tx, run.id, data.state, data.terminal_reason ?? null);
-      else if (data.state === 'paused' || (data.state === 'waiting' && run.op_waiting !== 'external_confirmation'))
+      // A run that waits for a person stops working at once. A dispatch whose outcome is unknown
+      // keeps its credential (the agent may hold it) but every callback is refused until an
+      // owner reconciles it; a confirmed send continues with the same credential.
+      else if (
+        data.state === 'paused' ||
+        (data.state === 'waiting' && run.op_waiting !== 'external_confirmation' && run.op_waiting !== 'reconciliation_required')
+      )
         await this.#revokeCredentials(tx, run.id, data.state === 'paused' ? 'paused' : 'waiting');
       return;
     }

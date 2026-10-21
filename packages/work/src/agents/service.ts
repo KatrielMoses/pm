@@ -156,9 +156,10 @@ export type Readiness = {
 };
 
 export const EXECUTION = {
-  available: false,
+  // 8C: runs exist. A finished run is draft output for a person's review; acceptance is 8D.
+  available: true,
   owner: '8C',
-  note: 'Assigned agents run when durable agent runs arrive (Phase 8C). Nothing has been sent to an agent.',
+  note: 'Start a run from the task. A finished run returns draft output for review; nothing is accepted or completed by an agent.',
 } as const;
 const PROFILE_FIELDS = ['name', 'purpose', 'kind', 'template', 'draft'];
 /** Assignment-level reasons every task reader may see; profile facts collapse to `agent_not_ready`. */

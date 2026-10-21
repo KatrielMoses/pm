@@ -267,7 +267,34 @@ describe('automations (8A): AI drafts, future sources, alerts, lifecycle, previe
     await env.svc.disableAutomation(s.owner, s.ws, a.id, mutation());
   });
 
-  it('AT-572 future sources and agent workflows are typed boundaries: saved, never activated', async () => {
+  it('AT-572 future sources are typed boundaries: saved, never activated (8C made agent workflows real: an unknown agent is refused)', async () => {
+    const agentDef = {
+      schema_version: 1,
+      trigger: { kind: 'record.created', record: 'task' },
+      conditions: null,
+      steps: [{ id: 'x', type: 'action', action: 'agent.invoke', params: { agent: 'reviewer' } }],
+    };
+    const ag = (
+      await env.svc.createAutomation(
+        s.owner,
+        s.ws,
+        {
+          name: 'Agent step',
+          scope: { kind: 'brand', brand: s.brands.Harbor },
+          definition: agentDef,
+        },
+        mutation(),
+      )
+    ).data;
+    expect(ag.draft_status).toMatchObject({ valid: true, unavailable: [] });
+    await expect(
+      env.svc.activateAutomation(s.owner, s.ws, ag.id, {}, v(ag.version)),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        code: 'conflict',
+        issues: [expect.objectContaining({ code: 'agent_unavailable' })],
+      }),
+    );
     for (const [definition, owner] of [
       [
         {
@@ -277,26 +304,6 @@ describe('automations (8A): AI drafts, future sources, alerts, lifecycle, previe
           steps: [{ id: 'x', type: 'action', action: 'task.archive' }],
         },
         '9B',
-      ],
-      [
-        {
-          schema_version: 1,
-          trigger: { kind: 'agent.result', record: 'task' },
-          conditions: null,
-          steps: [{ id: 'x', type: 'action', action: 'task.archive' }],
-        },
-        '8C',
-      ],
-      [
-        {
-          schema_version: 1,
-          trigger: { kind: 'record.created', record: 'task' },
-          conditions: null,
-          steps: [
-            { id: 'x', type: 'action', action: 'agent.invoke', params: { agent: 'reviewer' } },
-          ],
-        },
-        '8C',
       ],
     ] as const) {
       const a = (

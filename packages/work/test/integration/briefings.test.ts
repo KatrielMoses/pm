@@ -198,7 +198,9 @@ describe('Phase 7E briefings and reviews', () => {
     expect(keys(b)).not.toContain(`accepted.claimed:${R.accepted}`);
     expect(b.statements.some((s) => s.key.startsWith('decisions.review:'))).toBe(true);
     expect(stmt(b, 'completed.count')!.text).toMatch(/claim of completion, not acceptance/);
-    expect(stmt(b, 'agent_runs.foundation')).toMatchObject({ kind: 'unavailable' });
+    // 8C: the agent-run section is real; with no run ready for review it says so (BRF-010).
+    expect(stmt(b, 'agent_runs.ready')).toMatchObject({ kind: 'calculation' });
+    expect(stmt(b, 'agent_runs.ready')!.text).toMatch(/No agent run/);
     expect(stmt(b, 'generated.unavailable')).toMatchObject({ kind: 'unavailable' });
     expect(stmt(b, 'ai_cost.window')!.text).toMatch(/no billable AI runs/);
     expect(stmt(b, 'time.planned_actual')!.kind).toBe('calculation');

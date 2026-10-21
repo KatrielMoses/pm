@@ -4064,6 +4064,7 @@ export interface AgentRunTable {
   operation_id: string;
   current_operation_id: string;
   attempt_number: Defaulted<number>;
+  dispatch_generation: Defaulted<number>;
   phase: Defaulted<string>;
   model_operation_id: string | null;
   request_key: string;
@@ -7900,6 +7901,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'operation_id',
     'current_operation_id',
     'attempt_number',
+    'dispatch_generation',
     'phase',
     'model_operation_id',
     'request_key',

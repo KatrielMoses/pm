@@ -114,7 +114,7 @@ describe('agents (8B): task assignments', () => {
     expect(p).toMatchObject({
       can_save: false,
       readiness: { state: 'ready', synthetic: true },
-      execution: { available: false, owner: '8C' },
+      execution: { available: true, owner: '8C' },
     });
     expect(
       (await db.admin(`SELECT count(*)::int AS n FROM agents.agent_assignment`)).rows[0]!.n,
@@ -156,7 +156,7 @@ describe('agents (8B): task assignments', () => {
       criteria: ['Mentions the launch date', 'Lists owners'],
       context: [{ name: 'Plan launch party' }],
       profile: { id: agent, name: 'Launch writer', kind: 'external' },
-      execution: { available: false, owner: '8C' },
+      execution: { available: true, owner: '8C' },
     });
     expect(fx.received().length).toBe(before);
     const after = (await env.svc.getTask(w.owner, w.ws, task)) as Record<string, any>;
@@ -165,8 +165,9 @@ describe('agents (8B): task assignments', () => {
       version: status.version,
       assignees: status.assignees,
     });
-    await expect(env.svc.startAgentRun(w.owner, w.ws, task, agent)).rejects.toEqual(
-      issueOf('execution_unavailable'),
+    // 8C: runs exist; with no product callback address configured here, a run is refused truthfully.
+    await expect(env.svc.startAgentRun(w.owner, w.ws, task, agent, {}, mutation())).rejects.toEqual(
+      issueOf('callback_unavailable'),
     );
     const rev = (
       await db.admin(

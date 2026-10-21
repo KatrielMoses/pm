@@ -167,7 +167,7 @@ describe('agents API (8B)', () => {
       state: 'draft',
       template: 'research',
       draft_status: { valid: true, missing: ['scope', 'model'] },
-      execution: { available: false, owner: '8C' },
+      execution: { available: true, owner: '8C' },
     });
     expect(a.id).toMatch(/^agt_/);
     expect(made.headers.etag).toBe(`"${a.version}"`);

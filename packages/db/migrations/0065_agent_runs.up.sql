@@ -41,6 +41,7 @@ CREATE TABLE agents.agent_run (
   operation_id uuid NOT NULL,
   current_operation_id uuid NOT NULL,
   attempt_number integer NOT NULL DEFAULT 1,
+  dispatch_generation integer NOT NULL DEFAULT 0,
   phase text NOT NULL DEFAULT 'start',
   model_operation_id uuid,
   request_key text NOT NULL,
@@ -107,7 +108,7 @@ CREATE TABLE agents.agent_run (
   CONSTRAINT agent_run_request_key CHECK (char_length(request_key) BETWEEN 8 AND 200),
   CONSTRAINT agent_run_tools CHECK (jsonb_typeof(tools) = 'array' AND jsonb_array_length(tools) <= 50),
   CONSTRAINT agent_run_limits CHECK (jsonb_typeof(limits) = 'object' AND octet_length(limits::text) <= 4096),
-  CONSTRAINT agent_run_counters CHECK (attempt_number >= 1 AND tool_calls_used >= 0 AND artifacts_used >= 0
+  CONSTRAINT agent_run_counters CHECK (attempt_number >= 1 AND dispatch_generation >= 0 AND tool_calls_used >= 0 AND artifacts_used >= 0
     AND output_bytes_used >= 0 AND events_used >= 0 AND event_seq >= 0),
   CONSTRAINT agent_run_costs CHECK ((measured_cost_micros IS NULL OR measured_cost_micros >= 0)
     AND (reported_cost_micros IS NULL OR reported_cost_micros >= 0)
@@ -343,7 +344,7 @@ REVOKE ALL ON agents.agent_run, agents.agent_run_event, agents.agent_tool_call, 
   agents.agent_run_credential, agents.emergency_stop FROM PUBLIC;
 GRANT SELECT, INSERT ON agents.agent_run, agents.agent_run_event, agents.agent_tool_call,
   agents.agent_artifact, agents.agent_run_credential, agents.emergency_stop TO app_rw, app_worker;
-GRANT UPDATE (current_operation_id, attempt_number, phase, model_operation_id, deadline_at, tool_calls_used,
+GRANT UPDATE (current_operation_id, attempt_number, dispatch_generation, phase, model_operation_id, deadline_at, tool_calls_used,
   artifacts_used, output_bytes_used, events_used, event_seq, measured_cost_micros, reported_cost_micros,
   reported_cost_currency, pause_requested_at, paused_by, paused_by_membership_id, result_status, result_summary, ended_at,
   updated_at, version) ON agents.agent_run TO app_rw, app_worker;
