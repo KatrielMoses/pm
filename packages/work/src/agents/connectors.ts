@@ -315,5 +315,106 @@ export async function handshake(
 
 /** Refuses a credential that is one of the product's own (a token is not a connector secret). */
 export function isOwnCredential(secret: string): boolean {
-  return /^(pm|hk|oac|pma)_/.test(secret);
+  return /^(pm|hk|oac|pma|par)_/.test(secret);
+}
+
+/**
+ * The outcome of one run dispatch (8C, ADR-0048 D7). `sent: false` only when nothing left the
+ * product (the guard refused before any request): typed proof of non-dispatch. Once a request
+ * may have left, anything but a valid 2xx acknowledgment is `unknown`: a receiver may have acted.
+ */
+export type DispatchResult =
+  | { ok: true; status: number }
+  | { ok: false; sent: false; code: HandshakeCode }
+  | { ok: false; sent: true; code: HandshakeCode | 'ack_invalid' };
+
+/**
+ * Sends one assignment dispatch over the connector's registered transport, under the same guards
+ * as the handshake: `POST {endpoint}/pm-agent/runs` (api, bearer), a signed `POST {endpoint}`
+ * (webhook; the answer must be signed back), or JSON-RPC `pm-agent/run` (mcp, bearer). The body
+ * is built by the caller in memory at send time and never stored.
+ */
+export async function dispatchRun(
+  target: { kind: ConnectorKind; endpoint: string; secret: string },
+  dispatch: { id: string; body: Record<string, unknown> },
+  opts: Omit<HandshakeOptions, 'nonce'>,
+  isAck: (parsed: unknown) => boolean,
+): Promise<DispatchResult> {
+  const guard = await checkEndpoint(target.endpoint, opts);
+  if (!guard.ok) return { ok: false, sent: false, code: guard.code };
+  const doFetch: ConnectorFetch = opts.fetchImpl ?? ((u, i) => fetch(u, i));
+  const now = opts.now ?? (() => new Date());
+  let url = guard.url.toString();
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    accept: 'application/json',
+    'user-agent': USER_AGENT,
+  };
+  let body: string;
+  const id = `run_${dispatch.id}`;
+  if (target.kind === 'api') {
+    url = `${url.replace(/\/+$/, '')}/pm-agent/runs`;
+    headers.authorization = `Bearer ${target.secret}`;
+    body = JSON.stringify(dispatch.body);
+  } else if (target.kind === 'webhook') {
+    const ts = String(Math.floor(now().getTime() / 1000));
+    body = JSON.stringify(dispatch.body);
+    headers['webhook-id'] = id;
+    headers['webhook-timestamp'] = ts;
+    headers['webhook-signature'] = signatureHeader([signPayload(target.secret, id, ts, body)]);
+  } else {
+    headers.authorization = `Bearer ${target.secret}`;
+    body = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'pm-agent/run', params: dispatch.body });
+  }
+  let res: Response;
+  try {
+    res = await doFetch(url, {
+      method: 'POST',
+      headers,
+      body,
+      redirect: 'manual',
+      signal: AbortSignal.timeout(opts.timeoutMs),
+    });
+  } catch (err) {
+    const name = (err as { name?: string }).name;
+    return {
+      ok: false,
+      sent: true,
+      code: name === 'TimeoutError' || name === 'AbortError' ? 'timeout' : 'network',
+    };
+  }
+  if (res.status >= 300 && res.status < 400) return { ok: false, sent: true, code: 'redirect_refused' };
+  if (res.status === 401 || res.status === 403) return { ok: false, sent: true, code: 'unauthorized' };
+  if (res.status < 200 || res.status >= 300) return { ok: false, sent: true, code: 'http_status' };
+  let text: string | null;
+  try {
+    text = await boundedText(res, opts.maxBytes);
+  } catch {
+    return { ok: false, sent: true, code: 'network' };
+  }
+  if (text === null) return { ok: false, sent: true, code: 'response_too_large' };
+  if (target.kind === 'webhook') {
+    const sig = res.headers.get('webhook-signature') ?? '';
+    const ts = res.headers.get('webhook-timestamp') ?? '';
+    const tsN = Number(ts);
+    if (
+      res.headers.get('webhook-id') !== id ||
+      !Number.isInteger(tsN) ||
+      Math.abs(now().getTime() / 1000 - tsN) > 300 ||
+      !signaturesMatch([target.secret], id, ts, text, sig)
+    )
+      return { ok: false, sent: true, code: 'signature_invalid' };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return { ok: false, sent: true, code: 'malformed_response' };
+  }
+  if (target.kind === 'mcp') {
+    const rpc = parsed as Record<string, unknown>;
+    if (rpc?.jsonrpc !== '2.0' || rpc.id !== 1) return { ok: false, sent: true, code: 'malformed_response' };
+    parsed = rpc.result;
+  }
+  return isAck(parsed) ? { ok: true, status: res.status } : { ok: false, sent: true, code: 'ack_invalid' };
 }

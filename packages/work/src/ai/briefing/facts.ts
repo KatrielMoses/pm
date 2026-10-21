@@ -969,19 +969,46 @@ export async function buildStatements(
       },
     });
     coverage.sections.ai_cost = { state: 'complete', shown: 1, total: 1 };
-    // Agent runs (BRF-010) are a registered foundation: Phase 8 supplies real agent runs.
+    // Agent runs ready for review (BRF-010, 8C): runs that returned draft output in this window
+    // on tasks the recipient can read. Ready for review is not acceptance and not completion.
+    const ready = (
+      await sql<{ public_id: string; title: string; version: number; agent: string; n: string }>`
+        SELECT r.public_id, t.title, t.version, ap.name AS agent, count(*) OVER () AS n
+          FROM agents.agent_run ar
+          JOIN exec.operation op ON op.id = ar.current_operation_id
+          JOIN agents.agent_profile ap ON ap.id = ar.profile_id
+          JOIN work.task t ON t.workspace_id = ar.workspace_id AND t.id = ar.task_id
+          JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+         WHERE op.execution_state = 'succeeded'
+           AND ar.ended_at >= ${input.windowStart} AND ar.ended_at < ${input.windowEnd}
+           AND ${readableTask}
+           ${scope.brandId ? sql`AND t.brand_id = ${scope.brandId}::uuid` : sql``}
+         ORDER BY ar.ended_at DESC, ar.id DESC
+         LIMIT ${SECTION_ITEMS_MAX}`.execute(tx.db)
+    ).rows;
+    const readyTotal = Number(ready[0]?.n ?? 0);
     out.push({
       section: 'agent_runs',
-      kind: 'unavailable',
-      key: 'agent_runs.foundation',
-      text: 'Agent-run review is not available yet: agents arrive in a later release (Phase 8C). This is not a statement that no agent work needs review.',
-      refs: [],
+      kind: 'calculation',
+      key: 'agent_runs.ready',
+      text: readyTotal
+        ? `${plural(readyTotal, 'agent run')} on tasks you can read returned draft output for review in this window. Ready for review is not acceptance and does not complete a task.`
+        : 'No agent run on a task you can read returned output for review in this window.',
+      refs: ready.map((t) => ({ type: 'task' as const, id: t.public_id, rec: t.public_id, v: t.version })),
+      figures: { total: readyTotal, shown: ready.length },
     });
+    for (const t of ready)
+      out.push({
+        section: 'agent_runs',
+        kind: 'fact',
+        key: `agent_runs.task:${t.public_id}`,
+        text: `${quote(t.agent)} returned draft output for ${quote(t.title)}; it is ready for review.`,
+        refs: [{ type: 'task', id: t.public_id, rec: t.public_id, v: t.version }],
+      });
     coverage.sections.agent_runs = {
-      state: 'unavailable',
-      shown: 0,
-      total: null,
-      note: 'phase_8c',
+      state: ready.length < readyTotal ? 'truncated' : 'complete',
+      shown: ready.length,
+      total: readyTotal,
     };
   }
 

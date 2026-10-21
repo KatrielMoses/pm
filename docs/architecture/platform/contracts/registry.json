@@ -1437,10 +1437,39 @@
       "delivery_authorization": null
     },
     {
+      "type": "agents.agent_run.failed",
+      "schema_version": 1,
+      "aggregate_entity": "agents.agent_run",
+      "fields": [
+        "run_id",
+        "task_id",
+        "terminal_reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "AGT-022",
+        "REL-006",
+        "LA-017"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
       "type": "agents.agent_run.output_returned",
       "schema_version": 1,
       "aggregate_entity": "agents.agent_run",
       "fields": [
+        "run_id",
+        "task_id",
+        "artifact_count",
         "deliverable_version_id"
       ],
       "max_class": "C1",
@@ -1453,7 +1482,8 @@
       },
       "public_webhook": "agent_run.output_returned",
       "requirements": [
-        "AGT-013"
+        "AGT-013",
+        "BRF-010"
       ],
       "allow_list_version": 1,
       "delivery_authorization": "subscription_owner_at_delivery"
@@ -6081,6 +6111,14 @@
         "outcome"
       ],
       "area": "ai"
+    },
+    {
+      "name": "agent.runs",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "agents"
     },
     {
       "name": "agent.tool_calls",

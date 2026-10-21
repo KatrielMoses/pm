@@ -3378,7 +3378,7 @@ export interface AiActionTable {
   price_snapshot: Json<Record<string, unknown>>;
   privacy_snapshot: Json<Record<string, unknown>>;
   funding: AiFunding;
-  caller_kind: 'ui' | 'api' | 'mcp' | 'automation';
+  caller_kind: 'ui' | 'api' | 'mcp' | 'automation' | 'agent';
   delegation_principal_type: string | null;
   delegation_token_id: string | null;
   prompt_text: string | null;
@@ -4036,6 +4036,126 @@ export interface AgentAssignmentRevisionTable {
   created_at: DefaultTimestamp;
 }
 
+export interface AgentRunTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  task_id: string;
+  profile_id: string;
+  assignment_id: string;
+  assignment_revision_id: string;
+  profile_revision_id: string;
+  kind: string;
+  instructions_hash: string;
+  initiator_membership_id: string | null;
+  initiator_kind: string;
+  source_ref: string | null;
+  assigner_membership_id: string;
+  owner_membership_id: string;
+  connector_id: string | null;
+  connector_config_version: number | null;
+  model_key: string | null;
+  scope_brand_ids: Defaulted<string[]>;
+  scope_project_ids: Defaulted<string[]>;
+  scope_record_ids: Defaulted<string[]>;
+  scope_integration_ids: Defaulted<string[]>;
+  tools: Json<unknown>;
+  limits: Json<unknown>;
+  operation_id: string;
+  current_operation_id: string;
+  attempt_number: Defaulted<number>;
+  phase: Defaulted<string>;
+  model_operation_id: string | null;
+  request_key: string;
+  deadline_at: Timestamp | null;
+  tool_calls_used: Defaulted<number>;
+  artifacts_used: Defaulted<number>;
+  output_bytes_used: Defaulted<number>;
+  events_used: Defaulted<number>;
+  event_seq: Defaulted<number>;
+  measured_cost_micros: number | null;
+  reported_cost_micros: number | null;
+  reported_cost_currency: string | null;
+  pause_requested_at: Timestamp | null;
+  paused_by: string | null;
+  paused_by_membership_id: string | null;
+  result_status: string | null;
+  result_summary: string | null;
+  ended_at: Timestamp | null;
+  created_at: DefaultTimestamp;
+  updated_at: DefaultTimestamp;
+  version: Defaulted<number>;
+}
+export interface AgentRunEventTable {
+  id: string;
+  workspace_id: string;
+  run_id: string;
+  operation_id: string;
+  seq: number;
+  kind: string;
+  source: string;
+  source_key: string | null;
+  text: string | null;
+  data: ColumnType<unknown, string | undefined, string>;
+  created_at: DefaultTimestamp;
+}
+export interface AgentToolCallTable {
+  id: string;
+  workspace_id: string;
+  run_id: string;
+  operation_id: string;
+  sequence: number;
+  call_key: string;
+  tool: string;
+  tool_version: string;
+  tool_class: string | null;
+  decision: string;
+  code: string | null;
+  target_ids: Defaulted<string[]>;
+  args_digest: string;
+  duration_ms: number | null;
+  created_at: DefaultTimestamp;
+}
+export interface AgentArtifactTable {
+  id: string;
+  workspace_id: string;
+  run_id: string;
+  operation_id: string;
+  artifact_key: string;
+  version_number: number;
+  title: string;
+  media_type: string;
+  content: string;
+  byte_size: number;
+  sha256: string;
+  producer: string;
+  created_at: DefaultTimestamp;
+}
+export interface AgentRunCredentialTable {
+  id: string;
+  workspace_id: string;
+  run_id: string;
+  operation_id: string;
+  token_prefix: string;
+  token_hash: Buffer;
+  expires_at: Timestamp;
+  stop_epoch: number;
+  state: Defaulted<string>;
+  revoked_reason: string | null;
+  revoked_at: Timestamp | null;
+  created_at: DefaultTimestamp;
+}
+export interface EmergencyStopTable {
+  id: string;
+  workspace_id: string;
+  action: string;
+  epoch: number;
+  actor_membership_id: string;
+  reason: string | null;
+  summary: ColumnType<unknown, string | undefined, string>;
+  created_at: DefaultTimestamp;
+}
+
 export interface Database {
   'files.file_object': FileObjectTable;
   'files.file': FileTable;
@@ -4261,6 +4381,12 @@ export interface Database {
   'agents.agent_connector_test': AgentConnectorTestTable;
   'agents.agent_assignment': AgentAssignmentTable;
   'agents.agent_assignment_revision': AgentAssignmentRevisionTable;
+  'agents.agent_run': AgentRunTable;
+  'agents.agent_run_event': AgentRunEventTable;
+  'agents.agent_tool_call': AgentToolCallTable;
+  'agents.agent_artifact': AgentArtifactTable;
+  'agents.agent_run_credential': AgentRunCredentialTable;
+  'agents.emergency_stop': EmergencyStopTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -7744,6 +7870,125 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'scope_project_ids',
     'scope_record_ids',
     'scope_integration_ids',
+    'created_at',
+  ],
+  'agents.agent_run': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'task_id',
+    'profile_id',
+    'assignment_id',
+    'assignment_revision_id',
+    'profile_revision_id',
+    'kind',
+    'instructions_hash',
+    'initiator_membership_id',
+    'initiator_kind',
+    'source_ref',
+    'assigner_membership_id',
+    'owner_membership_id',
+    'connector_id',
+    'connector_config_version',
+    'model_key',
+    'scope_brand_ids',
+    'scope_project_ids',
+    'scope_record_ids',
+    'scope_integration_ids',
+    'tools',
+    'limits',
+    'operation_id',
+    'current_operation_id',
+    'attempt_number',
+    'phase',
+    'model_operation_id',
+    'request_key',
+    'deadline_at',
+    'tool_calls_used',
+    'artifacts_used',
+    'output_bytes_used',
+    'events_used',
+    'event_seq',
+    'measured_cost_micros',
+    'reported_cost_micros',
+    'reported_cost_currency',
+    'pause_requested_at',
+    'paused_by',
+    'paused_by_membership_id',
+    'result_status',
+    'result_summary',
+    'ended_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'agents.agent_run_event': [
+    'id',
+    'workspace_id',
+    'run_id',
+    'operation_id',
+    'seq',
+    'kind',
+    'source',
+    'source_key',
+    'text',
+    'data',
+    'created_at',
+  ],
+  'agents.agent_tool_call': [
+    'id',
+    'workspace_id',
+    'run_id',
+    'operation_id',
+    'sequence',
+    'call_key',
+    'tool',
+    'tool_version',
+    'tool_class',
+    'decision',
+    'code',
+    'target_ids',
+    'args_digest',
+    'duration_ms',
+    'created_at',
+  ],
+  'agents.agent_artifact': [
+    'id',
+    'workspace_id',
+    'run_id',
+    'operation_id',
+    'artifact_key',
+    'version_number',
+    'title',
+    'media_type',
+    'content',
+    'byte_size',
+    'sha256',
+    'producer',
+    'created_at',
+  ],
+  'agents.agent_run_credential': [
+    'id',
+    'workspace_id',
+    'run_id',
+    'operation_id',
+    'token_prefix',
+    'token_hash',
+    'expires_at',
+    'stop_epoch',
+    'state',
+    'revoked_reason',
+    'revoked_at',
+    'created_at',
+  ],
+  'agents.emergency_stop': [
+    'id',
+    'workspace_id',
+    'action',
+    'epoch',
+    'actor_membership_id',
+    'reason',
+    'summary',
     'created_at',
   ],
 };

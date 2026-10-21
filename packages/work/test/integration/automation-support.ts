@@ -1,5 +1,5 @@
 import { LogErrorReporter } from '@pm/observability';
-import { WorkerRuntime, type EffectBarriers, type JobHandler } from '@pm/platform';
+import { WorkerRuntime, type EffectBarriers, type JobHandler, type OutboxConsumer } from '@pm/platform';
 import type { TestDatabase } from '@pm/test-support/vitest';
 import {
   automationRunHandler,
@@ -16,7 +16,12 @@ import type { WorkEnv } from './fixture.ts';
  */
 export async function automationWorker(
   env: WorkEnv,
-  options: { effectBarriers?: EffectBarriers; maxAttempts?: number; handlers?: JobHandler[] } = {},
+  options: {
+    effectBarriers?: EffectBarriers;
+    maxAttempts?: number;
+    handlers?: JobHandler[];
+    consumers?: OutboxConsumer[];
+  } = {},
 ) {
   const h = env.h;
   const svc = env.workerSvc();
@@ -38,6 +43,7 @@ export async function automationWorker(
     consumers: [
       new AutomationTriggerConsumer(svc),
       new AutomationOutcomeConsumer(svc),
+      ...(options.consumers ?? []),
       new NotificationFanOut(
         {
           notifyFanoutRecipientsMax: 500,

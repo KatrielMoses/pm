@@ -560,6 +560,22 @@ export interface WorkSettings {
   agentConnectorResponseMaxBytes: number;
   /** `AGENT_CONNECTOR_TESTS_PER_HOUR`: connector tests of one profile per hour, reserved under the connector lock (default 20, 1–200). */
   agentConnectorTestsPerHour: number;
+  /** `AGENT_RUNS_ACTIVE_MAX`: open agent runs per workspace, reserved under a workspace lock at admission (default 10, 1–200). */
+  agentRunsActiveMax: number;
+  /** `AGENT_RUN_RETRIES_MAX`: manual retries of one agent run; a retry keeps the run's counters and budget (default 3, 0–10). */
+  agentRunRetriesMax: number;
+  /** `AGENT_RUN_EVENTS_MAX`: progress events one run may record (default 500, 10–5000). */
+  agentRunEventsMax: number;
+  /** `AGENT_RUN_EVENT_TEXT_MAX_CHARS`: characters of one progress or commentary event (default 2000, 100–2000). */
+  agentRunEventTextMaxChars: number;
+  /** `AGENT_ARTIFACT_MAX_BYTES`: bytes of one draft artifact version (default 262144, 1024–1048576). */
+  agentArtifactMaxBytes: number;
+  /** `AGENT_RUN_OUTPUT_MAX_BYTES`: bytes of all artifact versions of one run (default 1048576, 1024–10485760). */
+  agentRunOutputMaxBytes: number;
+  /** `AGENT_RUN_CREDENTIAL_TTL_SECONDS`: lifetime of one run-bound credential (never beyond the run's deadline) (default 900, 60–3600). */
+  agentRunCredentialTtlSeconds: number;
+  /** `AGENT_RUN_POLL_WAIT_SECONDS`: longest wait of one progress long poll; access is decided again on every check (default 20, 0–30). */
+  agentRunPollWaitSeconds: number;
   /** `AGENT_CONNECTOR_TRANSPORT`: `none` (connector tests unavailable) or `fixture` (local and test only; results synthetic). */
   agentConnectorTransport: 'none' | 'fixture';
 }
@@ -834,6 +850,14 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   agentConnectorTimeoutMs: 10_000,
   agentConnectorResponseMaxBytes: 65_536,
   agentConnectorTestsPerHour: 20,
+  agentRunsActiveMax: 10,
+  agentRunRetriesMax: 3,
+  agentRunEventsMax: 500,
+  agentRunEventTextMaxChars: 2000,
+  agentArtifactMaxBytes: 262144,
+  agentRunOutputMaxBytes: 1048576,
+  agentRunCredentialTtlSeconds: 900,
+  agentRunPollWaitSeconds: 20,
   agentConnectorTransport: 'none',
 });
 

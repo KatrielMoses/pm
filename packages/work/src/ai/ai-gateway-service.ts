@@ -2955,6 +2955,64 @@ export class AiGatewayService extends McpAccessService {
     return { runPublicId: out.ref.id, kind: def.kind };
   }
 
+  /**
+   * 8C (AGT-006): one model turn for an internal agent run, through the same gateway: availability
+   * (a refusal, never a synthetic success, when AI is off or unconfigured), the privacy manifest
+   * discovered now through the run principal's authority and limited to the task, the budget
+   * reservation, and settlement. The caller's execution context names the run (caller kind
+   * `agent`). Returns the turn's operation; the agent run waits for it.
+   */
+  protected async startAgentAiRun(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    input: { instruction: string; task: string; confirm: boolean },
+  ): Promise<{ operationId: string; operationPublicId: string }> {
+    const def = ACTION_BY_ID.get('agent_task_draft.v1')!;
+    const { decision } = await this.#availability(tx);
+    this.#requireReady(decision);
+    const request = [`Action: ${def.label}`, `Request: ${input.instruction}`].join('\n');
+    const scoped = this.#parseRetrieval({ scope: { task: input.task } }, 'preview');
+    await this.#retrievalAuthority(tx, p, scoped.retrieval.scope);
+    const { policy } = await this.#availability(tx);
+    const manifest = await this.#manifestFor(
+      tx,
+      p,
+      { retrieval: scoped.retrieval, digest: null, pinned: null },
+      policy?.maxDataClass ?? 'C2',
+    );
+    const retrieval = this.#parseRetrieval(
+      { scope: { task: input.task }, question: request, manifest_digest: manifest.digest },
+      'answer',
+    );
+    const out = await this.#createRun(
+      tx,
+      caller,
+      p,
+      {
+        prompt: retrieval.question,
+        brand: null,
+        refs: [],
+        maxOutput: Math.min(retrieval.maxOutput, def.maxOutputTokens),
+        confirm: input.confirm,
+        answer: {
+          retrieval: retrieval.retrieval,
+          digest: retrieval.digest,
+          pinned: null,
+          action: def,
+          inputDigest: null,
+        },
+      },
+      null,
+    );
+    const op = await tx.db
+      .selectFrom('exec.operation')
+      .select('id')
+      .where('public_id', '=', out.ref.id)
+      .executeTakeFirstOrThrow();
+    return { operationId: op.id, operationPublicId: out.ref.id };
+  }
+
   /** A grounded run's recorded manifest, as the answer spec the worker and renderer re-check. */
   async #recordedAnswer(
     tx: WorkspaceTransaction,
@@ -3455,8 +3513,10 @@ export class AiGatewayService extends McpAccessService {
       risk: { actionKey: AI_EXECUTE_ACTION, riskClass: 'R1' },
       dataClassLimit: policy?.maxDataClass ?? 'C2',
     };
-    // 8A: a run an automation step requests is the automation's, on behalf of its owner.
+    // 8A: a run an automation step requests is the automation's, on behalf of its owner; 8C: a
+    // turn an internal agent run requests is the agent's, on behalf of its assigner.
     const automated = context.effectivePrincipal.type === 'automation';
+    const agent = context.effectivePrincipal.type === 'agent_run';
     const op = await createOperation(tx, {
       kind: 'ai_action',
       context,
@@ -3466,7 +3526,9 @@ export class AiGatewayService extends McpAccessService {
             id: context.effectivePrincipal.id,
             onBehalfOfMembershipId: p.membershipId,
           }
-        : { type: 'human', id: p.membershipId },
+        : agent
+          ? { type: 'agent', id: context.effectivePrincipal.id, onBehalfOfMembershipId: p.membershipId }
+          : { type: 'human', id: p.membershipId },
       ...(rerunOf ? { rerunOfOperationId: rerunOf } : {}),
     });
     const model = prep.decision.model;
@@ -3499,7 +3561,9 @@ export class AiGatewayService extends McpAccessService {
         funding: prep.decision.funding,
         caller_kind: automated
           ? 'automation'
-          : caller.delegation
+          : agent
+            ? 'agent'
+            : caller.delegation
             ? caller.delegation.sourceKind === 'mcp'
               ? 'mcp'
               : 'api'

@@ -369,6 +369,14 @@ export interface ServerConfig {
     agentConnectorTimeoutMs: number;
     agentConnectorResponseMaxBytes: number;
     agentConnectorTestsPerHour: number;
+    agentRunsActiveMax: number;
+    agentRunRetriesMax: number;
+    agentRunEventsMax: number;
+    agentRunEventTextMaxChars: number;
+    agentArtifactMaxBytes: number;
+    agentRunOutputMaxBytes: number;
+    agentRunCredentialTtlSeconds: number;
+    agentRunPollWaitSeconds: number;
     agentConnectorTransport: 'none' | 'fixture';
     webhookConcurrencyPerDestination: number;
     webhookBodyMaxBytes: number;
@@ -919,6 +927,14 @@ const DEFAULTS = {
   AGENT_CONNECTOR_TIMEOUT_MS: '10000',
   AGENT_CONNECTOR_RESPONSE_MAX_BYTES: '65536',
   AGENT_CONNECTOR_TESTS_PER_HOUR: '20',
+  AGENT_RUNS_ACTIVE_MAX: '10',
+  AGENT_RUN_RETRIES_MAX: '3',
+  AGENT_RUN_EVENTS_MAX: '500',
+  AGENT_RUN_EVENT_TEXT_MAX_CHARS: '2000',
+  AGENT_ARTIFACT_MAX_BYTES: '262144',
+  AGENT_RUN_OUTPUT_MAX_BYTES: '1048576',
+  AGENT_RUN_CREDENTIAL_TTL_SECONDS: '900',
+  AGENT_RUN_POLL_WAIT_SECONDS: '20',
   AGENT_CONNECTOR_TRANSPORT: 'none',
   WEBHOOK_CONCURRENCY_PER_DESTINATION: '4',
   WEBHOOK_BODY_MAX_BYTES: '262144',
@@ -1333,6 +1349,14 @@ const schema = z.object({
   AGENT_CONNECTOR_TIMEOUT_MS: int(1_000, 30_000),
   AGENT_CONNECTOR_RESPONSE_MAX_BYTES: int(1_024, 1_048_576),
   AGENT_CONNECTOR_TESTS_PER_HOUR: int(1, 200),
+  AGENT_RUNS_ACTIVE_MAX: int(1, 200),
+  AGENT_RUN_RETRIES_MAX: int(0, 10),
+  AGENT_RUN_EVENTS_MAX: int(10, 5000),
+  AGENT_RUN_EVENT_TEXT_MAX_CHARS: int(100, 2000),
+  AGENT_ARTIFACT_MAX_BYTES: int(1024, 1_048_576),
+  AGENT_RUN_OUTPUT_MAX_BYTES: int(1024, 10_485_760),
+  AGENT_RUN_CREDENTIAL_TTL_SECONDS: int(60, 3600),
+  AGENT_RUN_POLL_WAIT_SECONDS: int(0, 30),
   AGENT_CONNECTOR_TRANSPORT: z.enum(['none', 'fixture']),
   WEBHOOK_CONCURRENCY_PER_DESTINATION: int(1, 50),
   WEBHOOK_BODY_MAX_BYTES: int(1024, 1048576),
@@ -2219,6 +2243,14 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       agentConnectorTimeoutMs: c.AGENT_CONNECTOR_TIMEOUT_MS,
       agentConnectorResponseMaxBytes: c.AGENT_CONNECTOR_RESPONSE_MAX_BYTES,
       agentConnectorTestsPerHour: c.AGENT_CONNECTOR_TESTS_PER_HOUR,
+      agentRunsActiveMax: c.AGENT_RUNS_ACTIVE_MAX,
+      agentRunRetriesMax: c.AGENT_RUN_RETRIES_MAX,
+      agentRunEventsMax: c.AGENT_RUN_EVENTS_MAX,
+      agentRunEventTextMaxChars: c.AGENT_RUN_EVENT_TEXT_MAX_CHARS,
+      agentArtifactMaxBytes: c.AGENT_ARTIFACT_MAX_BYTES,
+      agentRunOutputMaxBytes: c.AGENT_RUN_OUTPUT_MAX_BYTES,
+      agentRunCredentialTtlSeconds: c.AGENT_RUN_CREDENTIAL_TTL_SECONDS,
+      agentRunPollWaitSeconds: c.AGENT_RUN_POLL_WAIT_SECONDS,
       agentConnectorTransport: c.AGENT_CONNECTOR_TRANSPORT,
       webhookConcurrencyPerDestination: c.WEBHOOK_CONCURRENCY_PER_DESTINATION,
       webhookBodyMaxBytes: c.WEBHOOK_BODY_MAX_BYTES,

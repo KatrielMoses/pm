@@ -29,7 +29,7 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  AgentService,
+  AgentRunService,
   agentProfileOwnerHook,
   automationOwnerHook,
   type AgentDeps,
@@ -68,12 +68,12 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: AgentService;
+  svc: AgentRunService;
   /**
    * 8A: the same service on the worker pool (`app_worker`), exactly as the worker process wires
    * it; automation runs, sweeps, and consumers execute through it.
    */
-  workerSvc(): AgentService;
+  workerSvc(): AgentRunService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -153,7 +153,7 @@ export function workEnv(
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
   const build = (tenant: typeof h.app) =>
-    new AgentService({
+    new AgentRunService({
       ...(options.ai ? { ai: options.ai } : {}),
       ...(options.agents ? { agents: options.agents } : {}),
       vault: createVault(h.config.identity),
@@ -221,7 +221,7 @@ export function workEnv(
       logger: h.logger,
     });
   const svc = build(h.app);
-  let worker: AgentService | null = null;
+  let worker: AgentRunService | null = null;
   const vault = createVault(h.config.identity);
   return {
     h,

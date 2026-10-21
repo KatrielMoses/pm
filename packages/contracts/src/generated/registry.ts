@@ -273,6 +273,13 @@ export const TELEMETRY_SIGNALS = [
     ]
   },
   {
+    "name": "agent.runs",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
     "name": "agent.tool_calls",
     "type": "counter",
     "labels": [
@@ -2202,10 +2209,24 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
+    "type": "agents.agent_run.failed",
+    "schemaVersion": 1,
+    "aggregateEntity": "agents.agent_run",
+    "fields": [
+      "run_id",
+      "task_id",
+      "terminal_reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
     "type": "agents.agent_run.output_returned",
     "schemaVersion": 1,
     "aggregateEntity": "agents.agent_run",
     "fields": [
+      "run_id",
+      "task_id",
+      "artifact_count",
       "deliverable_version_id"
     ],
     "maxClass": "C1"

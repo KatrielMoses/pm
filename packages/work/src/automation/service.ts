@@ -289,6 +289,23 @@ export class AutomationService extends AiGatewayService {
     );
   }
 
+  /** 8C fills these in: admission of an agent run for an automation step, and its checks. */
+  protected async invokeAgentForAutomation(
+    _tx: WorkspaceTransaction,
+    _p: Principal,
+    _input: { taskPublicId: string; profilePublicId: string; automationRunId: string; operationId: string; node: string },
+  ): Promise<{ runPublicId: string }> {
+    throw new StepRefused('unavailable', 'action_unavailable');
+  }
+
+  protected async automationAgentIssues(
+    _tx: WorkspaceTransaction,
+    _p: Principal,
+    agents: string[],
+  ): Promise<Array<ReturnType<typeof issue>>> {
+    return agents.length ? [issue('/steps', 'action_unavailable', 'Agent workflows are not available here.')] : [];
+  }
+
   get automationLimits(): DefinitionLimits {
     return {
       definitionBytesMax: this.ws.automationDefinitionBytesMax,
@@ -1101,6 +1118,12 @@ export class AutomationService extends AiGatewayService {
             ),
           });
         const resolved = await this.#resolveDraft(tx, p, a, c, 'activation');
+        // 8C: an agent step names a real, turned-on agent the activator can see.
+        const agentRefs = (((a.draft.definition as { steps?: unknown }).steps ?? []) as Array<Record<string, unknown>>)
+          .filter((s) => s.type === 'action' && s.action === 'agent.invoke')
+          .map((s) => String((s.params as Record<string, unknown> | undefined)?.agent ?? ''));
+        const agentIssues = await this.automationAgentIssues(tx, p, agentRefs);
+        if (agentIssues.length) throw new TenancyError('conflict', { issues: agentIssues });
         // The accountable owner's own grantability (a configurer never lends authority).
         const owner = await this.#ownerPrincipal(tx, a.owner_membership_id);
         if (!owner)
@@ -1913,6 +1936,9 @@ export class AutomationService extends AiGatewayService {
     let id: string | null = e.aggregate.id;
     if (e.type === 'collab.comment.created')
       id = typeof data.host_record_id === 'string' ? data.host_record_id : null;
+    // 8C: an agent run's result is about its task.
+    if (e.type === 'agents.agent_run.output_returned')
+      id = typeof data.task_id === 'string' ? data.task_id : null;
     if (e.type === 'collab.review.decided') {
       const ref = typeof data.subject_ref === 'string' ? data.subject_ref : null;
       id = ref && /^[0-9a-f-]{36}$/.test(ref) ? ref : null;
@@ -1961,6 +1987,8 @@ export class AutomationService extends AiGatewayService {
         return true;
       case 'approval.decided':
         return t.decision === null || data.decision === t.decision;
+      case 'agent.result':
+        return true;
       default:
         return false;
     }
@@ -2285,7 +2313,7 @@ export class AutomationService extends AiGatewayService {
       const a = next.advance;
       if (a.kind === 'continue') continue;
       if (a.kind === 'done')
-        return a.result.state === 'waiting'
+        return a.result.state === 'waiting' && a.result.resumeAt
           ? { ...a.result, resumeAt: new Date(a.result.resumeAt) }
           : a.result;
       if (a.kind === 'fail') throw new JobError(a.errorClass, a.code);
@@ -2350,7 +2378,7 @@ export class AutomationService extends AiGatewayService {
           const r = out.advance;
           if (r.kind === 'continue') continue;
           if (r.kind === 'done')
-            return r.result.state === 'waiting'
+            return r.result.state === 'waiting' && r.result.resumeAt
               ? { ...r.result, resumeAt: new Date(r.result.resumeAt) }
               : r.result;
           if (r.kind === 'fail') throw new JobError(r.errorClass, r.code);
@@ -3285,6 +3313,26 @@ export class AutomationService extends AiGatewayService {
       case 'task.notify':
       case 'project.notify':
         return this.#notify(tx, p, run, node, targets);
+      case 'agent.invoke': {
+        const trig = run.trigger_record_id
+          ? await tx.db
+              .selectFrom('core.record')
+              .select(['public_id', 'record_type'])
+              .where('id', '=', run.trigger_record_id)
+              .executeTakeFirst()
+          : null;
+        if (!trig || trig.record_type !== 'task') throw new StepRefused('validation_failed', 'no_trigger_record');
+        await this.loadTask(tx, p, trig.public_id);
+        const out = await this.invokeAgentForAutomation(tx, p, {
+          taskPublicId: trig.public_id,
+          profilePublicId: prm.agent as string,
+          automationRunId: run.id,
+          operationId: run.current_operation_id,
+          node: node.id,
+        });
+        // A request, not a result: the agent's own result arrives later (the agent.result trigger).
+        return { agent_run: out.runPublicId, state: 'queued' };
+      }
       case 'ai.draft': {
         const trig = run.trigger_record_id
           ? await tx.db
@@ -4252,7 +4300,7 @@ export class AutomationService extends AiGatewayService {
               const targets = node.target
                 ? await this.#targets(tx, pv, fakeRun, revision, node)
                 : [];
-              entry.outcome = node.action === 'agent.invoke' ? 'unavailable' : 'would_run';
+              entry.outcome = 'would_run';
               entry.targets = targets.map((t) => ({ id: t.publicId, type: t.kind }));
               if (node.action === 'webhook.send')
                 entry.discloses = { webhook: node.params.subscription, fields: node.params.fields };

@@ -69,8 +69,8 @@ export interface AgentDeps {
   fetchImpl?: (url: string, init: RequestInit) => Promise<Response>;
 }
 
-type ProfileState = 'draft' | 'active' | 'disabled' | 'suspended';
-interface ProfileRow {
+export type ProfileState = 'draft' | 'active' | 'disabled' | 'suspended';
+export interface ProfileRow {
   id: string;
   public_id: string;
   workspace_id: string;
@@ -90,7 +90,7 @@ interface ProfileRow {
   updated_at: Date;
   version: number;
 }
-interface RevisionRow {
+export interface RevisionRow {
   id: string;
   revision_number: number;
   kind: 'internal' | 'external';
@@ -99,7 +99,7 @@ interface RevisionRow {
   model_key: string | null;
   created_at: Date;
 }
-interface Grants {
+export interface Grants {
   brand: Set<string>;
   project: Set<string>;
   record: Set<string>;
@@ -111,7 +111,7 @@ interface Grants {
     approval_class: string;
   }>;
 }
-interface ConnectorRow {
+export interface ConnectorRow {
   id: string;
   profile_id: string;
   kind: ConnectorKind;
@@ -129,7 +129,7 @@ interface ConnectorRow {
   version: number;
 }
 /** One resolved scope item (internal ids) with the record type of a record grant. */
-interface ScopeItem {
+export interface ScopeItem {
   kind: ScopeKind;
   id: string;
   publicId: string;
@@ -149,13 +149,13 @@ interface AssignmentInput {
   context: string[];
   scope: Record<ScopeKind, string[]> | null;
 }
-type Readiness = {
+export type Readiness = {
   state: 'ready' | 'not_ready';
   reasons: string[];
   synthetic: boolean;
 };
 
-const EXECUTION = {
+export const EXECUTION = {
   available: false,
   owner: '8C',
   note: 'Assigned agents run when durable agent runs arrive (Phase 8C). Nothing has been sent to an agent.',
@@ -197,6 +197,11 @@ export class AgentService extends AutomationService {
     this.#agents = deps.agents ?? { transport: 'none', productOrigin: null };
   }
 
+  /** The connector transport settings (8C dispatches through the same boundary). */
+  protected get agentDeps(): AgentDeps {
+    return this.#agents;
+  }
+
   #limits(): ConfigLimits {
     return {
       instructionsMaxChars: this.ws.agentInstructionsMaxChars,
@@ -224,7 +229,7 @@ export class AgentService extends AutomationService {
       throw new TenancyError('forbidden');
   }
 
-  #canConfigure(p: Principal) {
+  protected agCanConfigure(p: Principal) {
     return p.kind === 'member' && decideWorkspace(p, 'agents.configure').allowed;
   }
 
@@ -232,7 +237,7 @@ export class AgentService extends AutomationService {
   // Loading
   // ---------------------------------------------------------------------------------------------
 
-  async #rows(tx: WorkspaceTransaction, where: { publicId?: string; id?: string }, lock = false) {
+  protected async agRows(tx: WorkspaceTransaction, where: { publicId?: string; id?: string }, lock = false) {
     let q = tx.db
       .selectFrom('agents.agent_profile as a')
       .innerJoin('core.record as r', 'r.id', 'a.id')
@@ -265,7 +270,7 @@ export class AgentService extends AutomationService {
     opts: { lock?: boolean; need?: 'view' | 'configure'; allowTrashed?: boolean } = {},
   ): Promise<ProfileRow> {
     if (p.kind !== 'member' || !isPublic(publicId, 'agt')) throw new TenancyError('not_found');
-    const row = await this.#rows(tx, { publicId }, opts.lock);
+    const row = await this.agRows(tx, { publicId }, opts.lock);
     if (!row || row.lifecycle_state === 'purged') throw new TenancyError('not_found');
     if (row.lifecycle_state === 'trashed' && !opts.allowTrashed)
       throw new TenancyError('not_found');
@@ -273,7 +278,7 @@ export class AgentService extends AutomationService {
     return row;
   }
 
-  async #revision(tx: WorkspaceTransaction, id: string): Promise<RevisionRow> {
+  protected async agRevision(tx: WorkspaceTransaction, id: string): Promise<RevisionRow> {
     const r = await tx.db
       .selectFrom('agents.agent_profile_revision')
       .selectAll()
@@ -286,7 +291,7 @@ export class AgentService extends AutomationService {
     } as unknown as RevisionRow;
   }
 
-  async #grants(tx: WorkspaceTransaction, revisionId: string): Promise<Grants> {
+  protected async agGrants(tx: WorkspaceTransaction, revisionId: string): Promise<Grants> {
     const scope = await tx.db
       .selectFrom('agents.agent_scope_grant')
       .select(['kind', 'target_id'])
@@ -314,7 +319,7 @@ export class AgentService extends AutomationService {
     return g;
   }
 
-  async #connector(tx: WorkspaceTransaction, profileId: string, lock = false) {
+  protected async agConnector(tx: WorkspaceTransaction, profileId: string, lock = false) {
     let q = tx.db
       .selectFrom('agents.agent_connector')
       .selectAll()
@@ -324,7 +329,7 @@ export class AgentService extends AutomationService {
     return r ? ({ ...r, version: Number(r.version) } as unknown as ConnectorRow) : null;
   }
 
-  async #memberPrincipal(
+  protected async agMemberPrincipal(
     tx: WorkspaceTransaction,
     membershipId: string,
   ): Promise<Principal | null> {
@@ -339,7 +344,7 @@ export class AgentService extends AutomationService {
     return compilePrincipal(tx, m.id, m.account_id, 'member');
   }
 
-  async #member(tx: WorkspaceTransaction, membershipId: string) {
+  protected async agMember(tx: WorkspaceTransaction, membershipId: string) {
     const m = await tx.db
       .selectFrom('tenancy.membership as m')
       .innerJoin('identity.account as a', 'a.id', 'm.account_id')
@@ -364,8 +369,8 @@ export class AgentService extends AutomationService {
     const issues = [];
     for (const kind of ['brand', 'project', 'record', 'integration'] as const) {
       for (const [i, pub] of scope[kind].entries()) {
-        const item = await this.#find(tx, kind, pub);
-        if (!item || (await this.#levelOn(tx, p, item)) === null)
+        const item = await this.agFind(tx, kind, pub);
+        if (!item || (await this.agLevelOn(tx, p, item)) === null)
           issues.push(
             issue(`${pointer}/${kind}s/${i}`, 'invalid_reference', 'Choose an item you can open.'),
           );
@@ -376,7 +381,7 @@ export class AgentService extends AutomationService {
     return out;
   }
 
-  async #find(tx: WorkspaceTransaction, kind: ScopeKind, pub: string): Promise<ScopeItem | null> {
+  protected async agFind(tx: WorkspaceTransaction, kind: ScopeKind, pub: string): Promise<ScopeItem | null> {
     if (kind === 'integration') {
       const id = await this.connectionIdOf(tx, pub);
       return id ? { kind, id, publicId: pub } : null;
@@ -401,7 +406,7 @@ export class AgentService extends AutomationService {
    * Integrations: `view` when the person can see the connection (its records keep their own
    * authorization). Null when it is not readable now.
    */
-  async #levelOn(tx: WorkspaceTransaction, p: Principal, item: ScopeItem): Promise<Level | null> {
+  protected async agLevelOn(tx: WorkspaceTransaction, p: Principal, item: ScopeItem): Promise<Level | null> {
     try {
       if (item.kind === 'integration')
         return (await this.connectionVisibleTo(tx, p, item.id)) ? 'view' : null;
@@ -474,7 +479,7 @@ export class AgentService extends AutomationService {
    * a record grant covers that record only; an integration grant covers that connection only and
    * never the records behind it.
    */
-  async #within(tx: WorkspaceTransaction, item: ScopeItem, g: Pick<Grants, ScopeKind>) {
+  protected async agWithin(tx: WorkspaceTransaction, item: ScopeItem, g: Pick<Grants, ScopeKind>) {
     if (item.kind === 'integration') return g.integration.has(item.id);
     if (item.kind === 'record' && g.record.has(item.id)) return true;
     const place = await this.#placement(tx, item);
@@ -516,7 +521,7 @@ export class AgentService extends AutomationService {
       ];
     const out = [];
     for (const item of items) {
-      const l = await this.#levelOn(tx, p, item);
+      const l = await this.agLevelOn(tx, p, item);
       if (levelRank(l) < levelRank(need))
         out.push(
           issue(
@@ -536,23 +541,23 @@ export class AgentService extends AutomationService {
   // ---------------------------------------------------------------------------------------------
 
   /** Whether a profile could take work now (assignment readiness builds on it). */
-  async #readiness(tx: WorkspaceTransaction, row: ProfileRow): Promise<Readiness> {
+  protected async agReadiness(tx: WorkspaceTransaction, row: ProfileRow): Promise<Readiness> {
     const reasons: string[] = [];
     let synthetic = false;
     if (row.lifecycle_state !== 'active') reasons.push('archived');
     if (row.state === 'draft') reasons.push('not_activated');
     if (row.state === 'disabled') reasons.push('disabled');
     if (row.state === 'suspended') reasons.push(row.suspended_reason ?? 'suspended');
-    const owner = await this.#memberPrincipal(tx, row.owner_membership_id);
+    const owner = await this.agMemberPrincipal(tx, row.owner_membership_id);
     if (!owner) reasons.push('owner_unavailable');
     if (row.active_revision_id) {
-      const rev = await this.#revision(tx, row.active_revision_id);
+      const rev = await this.agRevision(tx, row.active_revision_id);
       // The owner's authority is decided now (I-12): an owner who can no longer grant the active
       // revision's scope at the level its tools need makes the profile not ready until a person
       // validates it again (reassignment or reactivation), without waiting for a sweep.
       if (owner && row.state === 'active') {
-        const g = await this.#grants(tx, rev.id);
-        const items = await this.#itemsOf(tx, g);
+        const g = await this.agGrants(tx, rev.id);
+        const items = await this.agItemsOf(tx, g);
         if ((await this.#grantable(tx, owner, items, this.#requiredLevel(g.tools), 'owner')).length)
           reasons.push('owner_authority');
       }
@@ -563,7 +568,7 @@ export class AgentService extends AutomationService {
       }
     }
     if (row.kind === 'external') {
-      const c = await this.#connector(tx, row.id);
+      const c = await this.agConnector(tx, row.id);
       if (!c || c.state === 'revoked') reasons.push('connector_missing');
       else if (c.state !== 'verified' || c.verified_version !== c.config_version)
         reasons.push(
@@ -579,7 +584,7 @@ export class AgentService extends AutomationService {
   }
 
   async #summary(tx: WorkspaceTransaction, p: Principal, row: ProfileRow) {
-    const configure = this.#canConfigure(p);
+    const configure = this.agCanConfigure(p);
     return {
       id: row.public_id,
       type: 'agent_profile' as const,
@@ -588,9 +593,9 @@ export class AgentService extends AutomationService {
       kind: row.kind,
       state: row.lifecycle_state === 'active' ? row.state : (row.lifecycle_state as string),
       suspended_reason: row.suspended_reason,
-      owner: await this.#member(tx, row.owner_membership_id),
+      owner: await this.agMember(tx, row.owner_membership_id),
       template: row.template_key,
-      readiness: await this.#readiness(tx, row),
+      readiness: await this.agReadiness(tx, row),
       execution: EXECUTION,
       capabilities: {
         configure,
@@ -606,7 +611,7 @@ export class AgentService extends AutomationService {
   async #full(tx: WorkspaceTransaction, p: Principal, row: ProfileRow) {
     const summary = await this.#summary(tx, p, row);
     if (!summary.capabilities.configure) return summary;
-    const connector = await this.#connector(tx, row.id);
+    const connector = await this.agConnector(tx, row.id);
     let status: Record<string, unknown>;
     try {
       const c = compileConfig(row.draft, this.#limits());
@@ -621,7 +626,7 @@ export class AgentService extends AutomationService {
         matches_active: false,
       };
       if (row.active_revision_id) {
-        const rev = await this.#revision(tx, row.active_revision_id);
+        const rev = await this.agRevision(tx, row.active_revision_id);
         status.matches_active = rev.config_hash === this.#hash(c);
       }
     } catch (err) {
@@ -636,14 +641,14 @@ export class AgentService extends AutomationService {
     }
     let active: Record<string, unknown> | null = null;
     if (row.active_revision_id) {
-      const rev = await this.#revision(tx, row.active_revision_id);
-      const g = await this.#grants(tx, rev.id);
+      const rev = await this.agRevision(tx, row.active_revision_id);
+      const g = await this.agGrants(tx, rev.id);
       active = {
         revision: rev.revision_number,
         model_key: rev.model_key,
         limits: (rev.config as { limits?: unknown }).limits ?? {},
         tools: g.tools,
-        scope: await this.#scopeView(tx, p, g),
+        scope: await this.agScopeView(tx, p, g),
         activated_at: row.activated_at?.toISOString() ?? null,
       };
     }
@@ -661,20 +666,20 @@ export class AgentService extends AutomationService {
    * item is omitted completely. No count, total, flag, or placeholder reveals whether or how many
    * items are hidden.
    */
-  async #scopeView(tx: WorkspaceTransaction, p: Principal, g: Pick<Grants, ScopeKind>) {
+  protected async agScopeView(tx: WorkspaceTransaction, p: Principal, g: Pick<Grants, ScopeKind>) {
     const out: Array<{ kind: ScopeKind; id: string; name: string }> = [];
     for (const kind of ['brand', 'project', 'record', 'integration'] as const)
       for (const id of g[kind]) {
         const r =
           kind === 'integration'
             ? await this.connectionVisibleTo(tx, p, id)
-            : await this.#named(tx, p, kind, id);
+            : await this.agNamed(tx, p, kind, id);
         if (r) out.push({ kind, id: r.publicId, name: r.name });
       }
     return { items: out };
   }
 
-  async #named(tx: WorkspaceTransaction, p: Principal, kind: ScopeKind, id: string) {
+  protected async agNamed(tx: WorkspaceTransaction, p: Principal, kind: ScopeKind, id: string) {
     const r = await tx.db
       .selectFrom('core.record')
       .select(['public_id', 'record_type'])
@@ -687,7 +692,7 @@ export class AgentService extends AutomationService {
       publicId: r.public_id,
       ...(kind === 'record' ? { recordType: r.record_type as 'task' } : {}),
     };
-    if ((await this.#levelOn(tx, p, item)) === null) return null;
+    if ((await this.agLevelOn(tx, p, item)) === null) return null;
     const name = await this.#nameOf(tx, r.record_type, id);
     return name === null ? null : { publicId: r.public_id, name };
   }
@@ -808,11 +813,11 @@ export class AgentService extends AutomationService {
         .execute();
       const data = [];
       for (const r of rows)
-        data.push(await this.#summary(tx, p, (await this.#rows(tx, { id: r.id }))!));
+        data.push(await this.#summary(tx, p, (await this.agRows(tx, { id: r.id }))!));
       return {
         data,
         page: { next_cursor: null },
-        capabilities: { create: this.#canConfigure(p) },
+        capabilities: { create: this.agCanConfigure(p) },
       };
     });
   }
@@ -925,7 +930,7 @@ export class AgentService extends AutomationService {
         return {
           status: 201,
           ref: { id: publicId, type: 'agent_profile' },
-          data: await this.#full(tx, p, (await this.#rows(tx, { id }))!),
+          data: await this.#full(tx, p, (await this.agRows(tx, { id }))!),
         };
       },
       async (tx, p, ref) => {
@@ -1009,7 +1014,7 @@ export class AgentService extends AutomationService {
         return {
           status: 200,
           ref: { id: row.public_id, type: 'agent_profile' },
-          data: await this.#full(tx, p, (await this.#rows(tx, { id: row.id }))!),
+          data: await this.#full(tx, p, (await this.agRows(tx, { id: row.id }))!),
         };
       },
       async (tx, p, ref) => {
@@ -1061,7 +1066,7 @@ export class AgentService extends AutomationService {
               ),
             ),
           });
-        const connector = await this.#connector(tx, row.id);
+        const connector = await this.agConnector(tx, row.id);
         const missing = missingConfiguration(
           c,
           connector && connector.state !== 'revoked' ? { configured: true } : null,
@@ -1081,7 +1086,7 @@ export class AgentService extends AutomationService {
         const owner =
           row.owner_membership_id === p.membershipId
             ? p
-            : await this.#memberPrincipal(tx, row.owner_membership_id);
+            : await this.agMemberPrincipal(tx, row.owner_membership_id);
         const refused = [
           ...(await this.#grantable(tx, p, items, need, 'configurer')),
           ...(row.owner_membership_id === p.membershipId
@@ -1177,7 +1182,7 @@ export class AgentService extends AutomationService {
         return {
           status: 200,
           ref: { id: row.public_id, type: 'agent_profile' },
-          data: await this.#full(tx, p, (await this.#rows(tx, { id: row.id }))!),
+          data: await this.#full(tx, p, (await this.agRows(tx, { id: row.id }))!),
         };
       },
       async (tx, p, ref) => {
@@ -1219,7 +1224,7 @@ export class AgentService extends AutomationService {
         return {
           status: 200,
           ref: { id: row.public_id, type: 'agent_profile' },
-          data: await this.#full(tx, p, (await this.#rows(tx, { id: row.id }))!),
+          data: await this.#full(tx, p, (await this.agRows(tx, { id: row.id }))!),
         };
       },
       async (tx, p, ref) => {
@@ -1303,7 +1308,7 @@ export class AgentService extends AutomationService {
         return {
           status: 201,
           ref: { id: publicId, type: 'agent_profile' },
-          data: await this.#full(tx, p, (await this.#rows(tx, { id }))!),
+          data: await this.#full(tx, p, (await this.agRows(tx, { id }))!),
         };
       },
       async (tx, p, ref) => {
@@ -1342,12 +1347,12 @@ export class AgentService extends AutomationService {
           .select(['id'])
           .where('public_id', '=', ownerRef)
           .executeTakeFirst();
-        const owner = m ? await this.#memberPrincipal(tx, m.id) : null;
+        const owner = m ? await this.agMemberPrincipal(tx, m.id) : null;
         if (!m || !owner)
           throw invalid(issue('/owner', 'invalid_reference', 'Choose an active member.'));
         if (row.active_revision_id) {
-          const g = await this.#grants(tx, row.active_revision_id);
-          const items = await this.#itemsOf(tx, g);
+          const g = await this.agGrants(tx, row.active_revision_id);
+          const items = await this.agItemsOf(tx, g);
           const refused = await this.#grantable(
             tx,
             owner,
@@ -1385,7 +1390,7 @@ export class AgentService extends AutomationService {
         return {
           status: 200,
           ref: { id: row.public_id, type: 'agent_profile' },
-          data: await this.#full(tx, p, (await this.#rows(tx, { id: row.id }))!),
+          data: await this.#full(tx, p, (await this.agRows(tx, { id: row.id }))!),
         };
       },
       async (tx, p, ref) => {
@@ -1395,7 +1400,7 @@ export class AgentService extends AutomationService {
     );
   }
 
-  async #itemsOf(tx: WorkspaceTransaction, g: Pick<Grants, ScopeKind>): Promise<ScopeItem[]> {
+  protected async agItemsOf(tx: WorkspaceTransaction, g: Pick<Grants, ScopeKind>): Promise<ScopeItem[]> {
     const out: ScopeItem[] = [];
     for (const kind of ['brand', 'project', 'record', 'integration'] as const)
       for (const id of g[kind]) {
@@ -1505,7 +1510,7 @@ export class AgentService extends AutomationService {
             .set({ state: 'disabled', updated_at: new Date(), version: sql`version + 1` })
             .where('id', '=', row.id)
             .execute();
-        const now = (await this.#rows(tx, { id: row.id }))!;
+        const now = (await this.agRows(tx, { id: row.id }))!;
         return {
           status: 200,
           ref: { id: row.public_id, type: 'agent_profile' },
@@ -1542,7 +1547,7 @@ export class AgentService extends AutomationService {
         .execute();
       const data = [];
       for (const r of revs) {
-        const g = await this.#grants(tx, r.id);
+        const g = await this.agGrants(tx, r.id);
         data.push({
           revision: r.revision_number,
           active: r.id === row.active_revision_id,
@@ -1561,7 +1566,7 @@ export class AgentService extends AutomationService {
   // ---------------------------------------------------------------------------------------------
 
   async #revokeConnector(tx: WorkspaceTransaction, p: Principal, profileId: string) {
-    const c = await this.#connector(tx, profileId, true);
+    const c = await this.agConnector(tx, profileId, true);
     if (!c || c.state === 'revoked') return;
     if (c.secret_ref) await this.integrationVault().destroy(c.secret_ref, { scope: tx });
     await tx.db
@@ -1667,7 +1672,7 @@ export class AgentService extends AutomationService {
           throw new TenancyError('conflict', {
             issues: [issue('/', 'profile_archived', 'Restore this agent first.')],
           });
-        const current = await this.#connector(tx, row.id, true);
+        const current = await this.agConnector(tx, row.id, true);
         const live = current && current.state !== 'revoked' ? current : null;
         if (kind !== 'webhook' && !provided && (!live || live.kind !== kind || !live.secret_ref))
           throw invalid(issue('/secret', 'required', 'Enter the agent credential.'));
@@ -1728,7 +1733,7 @@ export class AgentService extends AutomationService {
           ],
           null,
         );
-        const view = await this.#full(tx, p, (await this.#rows(tx, { id: row.id }))!);
+        const view = await this.#full(tx, p, (await this.agRows(tx, { id: row.id }))!);
         return {
           status: 200,
           ref: { id: row.public_id, type: 'agent_profile' },
@@ -1766,7 +1771,7 @@ export class AgentService extends AutomationService {
         return {
           status: 200,
           ref: { id: row.public_id, type: 'agent_profile' },
-          data: await this.#full(tx, p, (await this.#rows(tx, { id: row.id }))!),
+          data: await this.#full(tx, p, (await this.agRows(tx, { id: row.id }))!),
         };
       },
       async (tx, p, ref) => {
@@ -1808,7 +1813,7 @@ export class AgentService extends AutomationService {
           throw new TenancyError('conflict', {
             issues: [issue('/', 'profile_archived', 'Restore this agent first.')],
           });
-        const c = await this.#connector(tx, row.id, true);
+        const c = await this.agConnector(tx, row.id, true);
         if (!c || c.state === 'revoked')
           throw new TenancyError('conflict', {
             issues: [issue('/connector', 'connector_missing', 'Configure a connector first.')],
@@ -1956,9 +1961,9 @@ export class AgentService extends AutomationService {
       .executeTakeFirst();
     if (!c || c.state === 'revoked') return { refused: 'connector_revoked' };
     if (c.config_version !== t.config_version) return { stale: true };
-    const row = await this.#rows(tx, { id: c.profile_id });
+    const row = await this.agRows(tx, { id: c.profile_id });
     if (!row || row.lifecycle_state !== 'active') return { refused: 'profile_archived' };
-    const requester = await this.#memberPrincipal(tx, t.requested_by_membership_id);
+    const requester = await this.agMemberPrincipal(tx, t.requested_by_membership_id);
     if (!requester || !decideWorkspace(requester, 'agents.configure').allowed)
       return { refused: 'requester_unauthorized' };
     if (this.#agents.transport === 'none') return { refused: 'transport_unavailable' };
@@ -2113,9 +2118,9 @@ export class AgentService extends AutomationService {
           .execute();
       return;
     }
-    const profile = (await this.#rows(tx, { id: c.profile_id }))!;
+    const profile = (await this.agRows(tx, { id: c.profile_id }))!;
     const granted = profile.active_revision_id
-      ? (await this.#grants(tx, profile.active_revision_id)).tools
+      ? (await this.agGrants(tx, profile.active_revision_id)).tools
       : [];
     const registered = result.manifest.tools.filter((x) => agentTool(x.name, x.version));
     const unregistered = result.manifest.tools.filter((x) => !agentTool(x.name, x.version));
@@ -2254,8 +2259,8 @@ export class AgentService extends AutomationService {
       throw new TenancyError('conflict', {
         issues: [issue('/profile', 'profile_not_active', 'This agent is not turned on.')],
       });
-    const grants = await this.#grants(tx, profile.active_revision_id);
-    const owner = await this.#memberPrincipal(tx, profile.owner_membership_id);
+    const grants = await this.agGrants(tx, profile.active_revision_id);
+    const owner = await this.agMemberPrincipal(tx, profile.owner_membership_id);
     const requested = input.scope ?? {
       brand: [],
       project: [],
@@ -2266,12 +2271,12 @@ export class AgentService extends AutomationService {
     for (const kind of ['brand', 'project', 'record', 'integration'] as const)
       for (const [i, pub] of requested[kind].entries()) {
         const pointer = `/scope/${kind}s/${i}`;
-        const item = await this.#find(tx, kind, pub);
-        if (!item || (await this.#levelOn(tx, p, item)) === null) {
+        const item = await this.agFind(tx, kind, pub);
+        if (!item || (await this.agLevelOn(tx, p, item)) === null) {
           refusals.push({ pointer, code: 'not_available', message: 'This item is not available.' });
           continue;
         }
-        if (!(await this.#within(tx, item, grants))) {
+        if (!(await this.agWithin(tx, item, grants))) {
           refusals.push({
             pointer,
             code: 'outside_profile_scope',
@@ -2279,7 +2284,7 @@ export class AgentService extends AutomationService {
           });
           continue;
         }
-        if (!owner || (await this.#levelOn(tx, owner, item)) === null) {
+        if (!owner || (await this.agLevelOn(tx, owner, item)) === null) {
           refusals.push({
             pointer,
             code: 'outside_owner_access',
@@ -2302,7 +2307,7 @@ export class AgentService extends AutomationService {
       publicId: task.publicId,
       recordType: 'task',
     };
-    const taskInScope = await this.#within(tx, taskItem, ceiling);
+    const taskInScope = await this.agWithin(tx, taskItem, ceiling);
     if (!taskInScope)
       refusals.push({
         pointer: '/scope',
@@ -2311,8 +2316,8 @@ export class AgentService extends AutomationService {
       });
     const context: ScopeItem[] = [];
     for (const [i, pub] of input.context.entries()) {
-      const item = await this.#find(tx, 'record', pub);
-      if (!item || (await this.#levelOn(tx, p, item)) === null) {
+      const item = await this.agFind(tx, 'record', pub);
+      if (!item || (await this.agLevelOn(tx, p, item)) === null) {
         refusals.push({
           pointer: `/context/${i}`,
           code: 'not_available',
@@ -2320,7 +2325,7 @@ export class AgentService extends AutomationService {
         });
         continue;
       }
-      if (!(await this.#within(tx, item, ceiling))) {
+      if (!(await this.agWithin(tx, item, ceiling))) {
         refusals.push({
           pointer: `/context/${i}`,
           code: 'outside_assignment_scope',
@@ -2346,13 +2351,13 @@ export class AgentService extends AutomationService {
   ) {
     const out: Array<{ id: string; name: string; usable?: boolean }> = [];
     for (const id of ids) {
-      const r = await this.#named(tx, p, 'record', id);
+      const r = await this.agNamed(tx, p, 'record', id);
       if (!r) continue;
       if (!live) {
         out.push({ id: r.publicId, name: r.name });
         continue;
       }
-      const [item] = await this.#itemsOf(tx, {
+      const [item] = await this.agItemsOf(tx, {
         brand: new Set(),
         project: new Set(),
         record: new Set([id]),
@@ -2361,7 +2366,7 @@ export class AgentService extends AutomationService {
       out.push({
         id: r.publicId,
         name: r.name,
-        usable: !!item && (await this.#within(tx, item, live)),
+        usable: !!item && (await this.agWithin(tx, item, live)),
       });
     }
     return out;
@@ -2372,7 +2377,7 @@ export class AgentService extends AutomationService {
    * and the 8C handoff: the task is active, and the person assigning holds `agent.assign` on it
    * now (task edit level; record shares never count). Throws the canonical refusal.
    */
-  #requireAssignable(p: Principal, t: Awaited<ReturnType<AgentService['loadTask']>>) {
+  protected agRequireAssignable(p: Principal, t: Awaited<ReturnType<AgentService['loadTask']>>) {
     this.requireTaskAction(p, 'agent.assign', t, { shares: false, excluded: 'forbidden' });
     this.requireTaskActive(t);
   }
@@ -2395,7 +2400,7 @@ export class AgentService extends AutomationService {
     if (!assigner) return ['assigner_unavailable'];
     try {
       const t = await this.loadTask(tx, assigner, rec.public_id);
-      this.#requireAssignable(assigner, t);
+      this.agRequireAssignable(assigner, t);
       return [];
     } catch (err) {
       if (err instanceof TenancyError) return ['assigner_authority'];
@@ -2409,7 +2414,7 @@ export class AgentService extends AutomationService {
     const input = this.#assignmentInput(body);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const t = await this.loadTask(tx, p, tsk);
-      this.#requireAssignable(p, t);
+      this.agRequireAssignable(p, t);
       const profile = await this.#visible(tx, p, input.profile);
       const r = await this.#resolveAssignment(
         tx,
@@ -2430,11 +2435,11 @@ export class AgentService extends AutomationService {
           p,
           r.context.map((c) => c.id),
         ),
-        scope: await this.#scopeView(tx, p, r.ceiling),
+        scope: await this.agScopeView(tx, p, r.ceiling),
         refusals: r.refusals,
         can_save:
           !r.refusals.some((x) => x.code === 'task_out_of_scope') && r.refusals.length === 0,
-        readiness: await this.#readiness(tx, profile),
+        readiness: await this.agReadiness(tx, profile),
         execution: EXECUTION,
       };
     });
@@ -2470,20 +2475,20 @@ export class AgentService extends AutomationService {
       withdrawn_at: unknown;
     },
   ) {
-    const profile = (await this.#rows(tx, { id: a.profile_id }))!;
+    const profile = (await this.agRows(tx, { id: a.profile_id }))!;
     const task = (await this.publicOf(tx, a.task_id))!;
     const rev = await tx.db
       .selectFrom('agents.agent_assignment_revision')
       .selectAll()
       .where('id', '=', a.current_revision_id!)
       .executeTakeFirstOrThrow();
-    const decision = a.state === 'assigned' ? await this.#decide(tx, a, rev) : null;
+    const decision = a.state === 'assigned' ? await this.agDecide(tx, a, rev) : null;
     // People who cannot configure agents learn only that the agent itself is not ready, never
     // which profile, model, connector, or owner fact made it so.
     const blocked = decision
       ? [
           ...new Set(
-            this.#canConfigure(p)
+            this.agCanConfigure(p)
               ? decision.reasons
               : decision.reasons.map((r) => (ASSIGNMENT_REASONS.has(r) ? r : 'agent_not_ready')),
           ),
@@ -2503,14 +2508,14 @@ export class AgentService extends AutomationService {
       context: await this.#contextView(tx, p, rev.context_refs, decision?.live),
       // The stored ceiling (history, as confirmed) and the live ceiling an 8C run could use now;
       // both show only the items this viewer can open.
-      effective_scope: decision ? await this.#scopeView(tx, p, decision.live) : { items: [] },
-      scope: await this.#scopeView(tx, p, {
+      effective_scope: decision ? await this.agScopeView(tx, p, decision.live) : { items: [] },
+      scope: await this.agScopeView(tx, p, {
         brand: new Set(rev.scope_brand_ids),
         project: new Set(rev.scope_project_ids),
         record: new Set(rev.scope_record_ids),
         integration: new Set(rev.scope_integration_ids),
       }),
-      assigned_by: await this.#member(tx, rev.assigner_membership_id),
+      assigned_by: await this.agMember(tx, rev.assigner_membership_id),
       assigned_at: new Date(a.created_at as string).toISOString(),
       withdrawn_at: a.withdrawn_at ? new Date(a.withdrawn_at as string).toISOString() : null,
       execution: EXECUTION,
@@ -2526,7 +2531,7 @@ export class AgentService extends AutomationService {
    * later grant adds is included. Blocked when anything fails or the task is no longer inside the
    * live ceiling.
    */
-  async #decide(
+  protected async agDecide(
     tx: WorkspaceTransaction,
     a: { profile_id: string; task_id: string },
     rev: {
@@ -2539,42 +2544,42 @@ export class AgentService extends AutomationService {
     },
   ) {
     const reasons = new Set<string>();
-    const profile = (await this.#rows(tx, { id: a.profile_id }))!;
-    const ready = await this.#readiness(tx, profile);
+    const profile = (await this.agRows(tx, { id: a.profile_id }))!;
+    const ready = await this.agReadiness(tx, profile);
     for (const r of ready.reasons) reasons.add(r);
-    const assigner = await this.#memberPrincipal(tx, rev.assigner_membership_id);
-    const owner = await this.#memberPrincipal(tx, profile.owner_membership_id);
+    const assigner = await this.agMemberPrincipal(tx, rev.assigner_membership_id);
+    const owner = await this.agMemberPrincipal(tx, profile.owner_membership_id);
     for (const r of await this.#assignerEligibility(tx, assigner, a.task_id)) reasons.add(r);
     const current = profile.active_revision_id
-      ? await this.#grants(tx, profile.active_revision_id)
+      ? await this.agGrants(tx, profile.active_revision_id)
       : null;
-    const pinned = await this.#grants(tx, rev.profile_revision_id);
+    const pinned = await this.agGrants(tx, rev.profile_revision_id);
     const live: Pick<Grants, ScopeKind> = {
       brand: new Set(),
       project: new Set(),
       record: new Set(),
       integration: new Set(),
     };
-    const items = await this.#itemsOf(tx, {
+    const items = await this.agItemsOf(tx, {
       brand: new Set(rev.scope_brand_ids),
       project: new Set(rev.scope_project_ids),
       record: new Set(rev.scope_record_ids),
       integration: new Set(rev.scope_integration_ids),
     });
     for (const item of items) {
-      if (!(await this.#within(tx, item, pinned))) continue;
-      if (!current || !(await this.#within(tx, item, current))) continue;
-      if (!assigner || (await this.#levelOn(tx, assigner, item)) === null) continue;
-      if (!owner || (await this.#levelOn(tx, owner, item)) === null) continue;
+      if (!(await this.agWithin(tx, item, pinned))) continue;
+      if (!current || !(await this.agWithin(tx, item, current))) continue;
+      if (!assigner || (await this.agLevelOn(tx, assigner, item)) === null) continue;
+      if (!owner || (await this.agLevelOn(tx, owner, item)) === null) continue;
       live[item.kind].add(item.id);
     }
-    const [taskItem] = await this.#itemsOf(tx, {
+    const [taskItem] = await this.agItemsOf(tx, {
       brand: new Set(),
       project: new Set(),
       record: new Set([a.task_id]),
       integration: new Set(),
     });
-    if (!taskItem || !(await this.#within(tx, taskItem, live))) reasons.add('scope_lost');
+    if (!taskItem || !(await this.agWithin(tx, taskItem, live))) reasons.add('scope_lost');
     const rank = (x: string) => APPROVAL_ORDER.indexOf(x as (typeof APPROVAL_ORDER)[number]);
     const tools = current
       ? pinned.tools.flatMap((t) => {
@@ -2606,7 +2611,7 @@ export class AgentService extends AutomationService {
       .where('public_id', '=', tsk)
       .where('record_type', '=', 'task')
       .executeTakeFirst();
-    const profile = await this.#rows(tx, { publicId: agt });
+    const profile = await this.agRows(tx, { publicId: agt });
     if (!t || !profile)
       return { eligible: false, reasons: ['not_found'], ceiling: null, tools: [] };
     const a = (await this.#assignmentRows(tx, t.id, { profileId: profile.id })).find(
@@ -2618,7 +2623,7 @@ export class AgentService extends AutomationService {
       .selectAll()
       .where('id', '=', a.current_revision_id!)
       .executeTakeFirstOrThrow();
-    const d = await this.#decide(tx, a, rev);
+    const d = await this.agDecide(tx, a, rev);
     return {
       eligible: d.eligible,
       reasons: d.reasons,
@@ -2666,7 +2671,7 @@ export class AgentService extends AutomationService {
       req,
       async (tx, p) => {
         const t = await this.loadTask(tx, p, tsk, { lock: true });
-        this.#requireAssignable(p, t);
+        this.agRequireAssignable(p, t);
         const profile = await this.#visible(tx, p, input.profile);
         const active = await this.#assignmentRows(tx, t.id);
         const open = active.filter((a) => a.state === 'assigned');
@@ -2809,7 +2814,7 @@ export class AgentService extends AutomationService {
       req,
       async (tx, p) => {
         const t = await this.loadTask(tx, p, tsk, { lock: true });
-        this.#requireAssignable(p, t);
+        this.agRequireAssignable(p, t);
         const profile = await this.#visible(tx, p, agt);
         const a = (
           await this.#assignmentRows(tx, t.id, { profileId: profile.id, lock: true })
@@ -2930,7 +2935,7 @@ export class AgentService extends AutomationService {
   }
 
   /** Agent execution does not exist yet (8C): the endpoint refuses truthfully and changes nothing. */
-  async startAgentRun(caller: Caller, ws: unknown, tsk: unknown, agt: unknown) {
+  async startAgentRun(caller: Caller, ws: unknown, tsk: unknown, agt: unknown, _body?: unknown, _req?: Mutation): Promise<unknown> {
     this.#assignScope(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const t = await this.loadTask(tx, p, tsk);

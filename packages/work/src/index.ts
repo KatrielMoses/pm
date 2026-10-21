@@ -141,6 +141,17 @@ export { automationAdapter, purgeAutomations } from './automation/lifecycle.ts';
 export { STARTER_TEMPLATES } from './automation/templates.ts';
 export * from './agents/service.ts';
 export * from './agents/jobs.ts';
+export * from './agents/runs.ts';
+export * from './agents/run-states.ts';
+export {
+  parseAck,
+  parseArtifact,
+  parseEvent,
+  parseResult,
+  parseToolCall,
+  RUN_PROTOCOL_VERSION,
+  type RunDispatch,
+} from './agents/run-protocol.ts';
 export {
   agentProfileAdapter,
   agentProfileOwnerHook,

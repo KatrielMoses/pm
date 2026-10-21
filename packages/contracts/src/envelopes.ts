@@ -311,6 +311,20 @@ export const NON_RESOURCE_TYPES = [
   'agent_assignment_preview',
   'agent_assignment',
   'agent_assignments',
+  // 8C: runs, previews, progress events, artifacts, the agent's own context and receipts, agent
+  // health, and the emergency stop.
+  'agent_run',
+  'agent_runs',
+  'agent_run_preview',
+  'agent_run_events',
+  'agent_artifact',
+  'agent_run_context',
+  'agent_run_event_receipt',
+  'agent_tool_result',
+  'agent_artifact_receipt',
+  'agent_run_result_receipt',
+  'agent_health',
+  'agent_emergency_stop',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

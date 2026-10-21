@@ -63,6 +63,8 @@ export const FANOUT_EVENTS = [
   'metering.usage.threshold_reached',
   'metering.usage.limit_reached',
   'automation.automation_run.failed',
+  'agents.agent_run.output_returned',
+  'agents.agent_run.failed',
 ] as const satisfies readonly InternalEventType[];
 
 const NIL_UUID = '00000000-0000-7000-8000-000000000000';
@@ -178,6 +180,40 @@ export class NotificationFanOut implements OutboxConsumer {
               },
             ]
           : [];
+      }
+      case 'agents.agent_run.output_returned':
+      case 'agents.agent_run.failed': {
+        // 8C (AGT-013, REL-006): the run's task is the record; the people who started and
+        // assigned the run hear about it, each only while they can still read the task. A ready
+        // run is draft output for review, never an acceptance or task completion.
+        const runId = str(data.run_id);
+        if (!runId) return [];
+        const r = await tx.db
+          .selectFrom('agents.agent_run')
+          .select(['task_id', 'initiator_membership_id', 'assigner_membership_id'])
+          .where('id', '=', runId)
+          .executeTakeFirst();
+        if (!r) return [];
+        const recipients = [...new Set([r.initiator_membership_id, r.assigner_membership_id].filter((x): x is string => !!x))];
+        return [
+          e.type === 'agents.agent_run.failed'
+            ? {
+                type: 'agent_failure' as const,
+                recordId: r.task_id,
+                actorId: null,
+                recipients,
+                facts: { terminal_reason: str(data.terminal_reason) },
+                occasion: `${runId}:${e.aggregate.sequence}`,
+              }
+            : {
+                type: 'agent_output_ready' as const,
+                recordId: r.task_id,
+                actorId: null,
+                recipients,
+                facts: { artifact_count: typeof data.artifact_count === 'number' ? data.artifact_count : null },
+                occasion: `${runId}:${e.aggregate.sequence}`,
+              },
+        ];
       }
       case 'integrations.webhook.delivery_failed': {
         const owner = await tx.db

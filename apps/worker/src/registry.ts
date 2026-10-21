@@ -59,6 +59,9 @@ import {
   type VoiceJobDeps,
   AUTOMATION_SCHEDULES,
   agentConnectorTestHandler,
+  agentRunHandler,
+  AgentRunOutcomeConsumer,
+  type AgentRunService,
   automationRunHandler,
   automationSweepHandler,
   AutomationOutcomeConsumer,
@@ -146,6 +149,9 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
       ? [automationRunHandler(m.automations), automationSweepHandler(m.automations)]
       : []),
     ...(m.agents ? [agentConnectorTestHandler(m.agents)] : []),
+    ...(m.agents?.service.runAgentJob
+      ? [agentRunHandler({ service: m.agents.service as Required<AgentJobDeps['service']> })]
+      : []),
   ];
 }
 
@@ -156,6 +162,7 @@ export function registeredConsumers(
     metrics?: Metrics;
     webhooks?: Pick<PublicApiService, 'projectWebhook'>;
     automations?: AutomationJobDeps['service'];
+    agents?: Pick<AgentRunService, 'consumeAgentOperationState'>;
   } = {
     arrayMax: 10_000,
   },
@@ -169,6 +176,7 @@ export function registeredConsumers(
           new AutomationOutcomeConsumer(deps.automations),
         ]
       : []),
+    ...(deps.agents ? [new AgentRunOutcomeConsumer(deps.agents)] : []),
     new NotificationFanOut(
       {
         notifyFanoutRecipientsMax: settings.notifyFanoutRecipientsMax,

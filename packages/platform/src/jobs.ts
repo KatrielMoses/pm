@@ -214,7 +214,25 @@ export type JobResult =
    * one continuation job is queued for `resumeAt` in the same fenced transaction. No worker sleeps
    * and no transaction is held while it waits.
    */
-  | { state: 'waiting'; reason: 'delay'; resumeAt: Date; result?: Record<string, unknown> };
+  | {
+      state: 'waiting';
+      reason: 'delay' | 'external_confirmation';
+      resumeAt: Date;
+      result?: Record<string, unknown>;
+    }
+  /**
+   * 8C: the work waits for a person (current authority changed, or an approval only a human can
+   * give). The job ends and the operation waits with the reason; no continuation is queued, so
+   * nothing resumes on its own: an authorized resume re-checks everything and enqueues a new job.
+   */
+  | {
+      state: 'waiting';
+      reason: 'authorization_changed' | 'approval';
+      resumeAt?: undefined;
+      result?: Record<string, unknown>;
+    }
+  /** 8C: paused by a person or the emergency stop; the operation is `paused`, nothing continues. */
+  | { state: 'paused'; result?: Record<string, unknown> };
 
 export interface JobHandler {
   readonly kind: string;

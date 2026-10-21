@@ -82,6 +82,20 @@ async function main(): Promise<void> {
       localOAuth: identity.localOAuth,
       componentHarness: config.features.componentHarness,
       resolveBearer: async (secret) => {
+        // 8C: a run-bound agent credential (`par_`) acts only for its one run.
+        const runCredential = secret.startsWith('par_')
+          ? await tenancy.authenticateAgentRunCredential(secret)
+          : null;
+        if (runCredential) {
+          const runCaller = syntheticCaller(runCredential.accountId, runCredential.delegation, {
+            correlationId: '0'.repeat(32),
+          });
+          return {
+            auth: runCaller.auth,
+            delegation: runCredential.delegation,
+            workspacePublicId: runCredential.workspacePublicId,
+          };
+        }
         const apiToken = await tenancy.authenticateApiToken(secret);
         const oauthToken = apiToken ? null : await tenancy.authenticateOAuthAccessToken(secret);
         const found = apiToken ?? oauthToken;

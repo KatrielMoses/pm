@@ -76,7 +76,8 @@ export const TRIGGERS = {
   date: { status: 'available', records: ['task'] },
   manual: { status: 'available', records: ['task', 'project'] },
   'test.result': { status: 'unavailable', records: ['task'], owner: '9B' },
-  'agent.result': { status: 'unavailable', records: ['task'], owner: '8C' },
+  // 8C: an agent run on the task returned its result for review (never acceptance).
+  'agent.result': { status: 'available', records: ['task'] },
 } as const satisfies Record<
   string,
   { status: 'available' | 'unavailable'; records: readonly RecordKind[]; owner?: string }
@@ -146,6 +147,8 @@ export function triggerEvents(t: Trigger): readonly string[] {
       return ['collab.review.decided'];
     case 'integration.record_created':
       return ['work.task.created'];
+    case 'agent.result':
+      return ['agents.agent_run.output_returned'];
     default:
       return [];
   }
@@ -161,6 +164,7 @@ export const TRIGGER_EVENT_TYPES = [
   'work.project.status_changed',
   'collab.comment.created',
   'collab.review.decided',
+  'agents.agent_run.output_returned',
 ] as const;
 
 /** `source_kind` values of tasks created by a verified integration source (6B inbound, 6A sync). */
@@ -342,11 +346,14 @@ export const ACTION_MATRIX = {
     permission: 'webhooks.manage',
     command: 'automationWebhook',
   },
+  // 8C (AUTO-007): admits an agent run on the trigger task through the one run admission (the
+  // owner needs agent.assign there and an assignment of that agent must exist); the step's
+  // success means the run was admitted, never that the agent finished.
   'agent.invoke': {
-    status: 'unavailable',
+    status: 'supported',
     record: null,
-    owner: '8C',
-    reason: 'Agent workflows arrive with the agent runtime (8B/8C).',
+    permission: 'agent.assign',
+    command: 'invokeAgentForAutomation',
   },
 } as const satisfies Record<
   string,
@@ -1129,11 +1136,13 @@ function compileNode(
     bad(`${pointer}/action`, 'action_unsupported', def.reason);
     return null;
   }
-  if (def.status === 'unavailable')
+  // No action is unavailable today (8C made agent workflows real); a later-phase action would be.
+  const later = def as { status: string; owner?: string };
+  if (later.status === 'unavailable')
     unavailable.push({
       pointer: `${pointer}/action`,
       code: 'action_unavailable',
-      owner: def.owner,
+      owner: later.owner ?? '',
     });
   // Target: record actions select a record related to the trigger record (bounded).
   let target: Target | null = null;

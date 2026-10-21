@@ -1,3 +1,4 @@
+import { agentRunsMetric } from './metrics-8c.ts';
 import { automationRunsMetric } from './metrics-8a.ts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { TenancyError, type Principal } from '@pm/tenancy';
@@ -189,7 +190,8 @@ export interface MetricProvider {
     | 'deliverables'
     | 'goals'
     | 'ai'
-    | 'automation';
+    | 'automation'
+    | 'agents';
   source: { kind: string; label: string };
   /** Guests and share-only readers may place and read only record-level metrics (ADR-0031 D8). */
   guestSafe: boolean;
@@ -1177,6 +1179,8 @@ export const PROVIDERS: readonly MetricProvider[] = [
   aiUsageMetric,
   // 8A: automation run outcomes and success rate, for people who may view automation health.
   automationRunsMetric,
+  // 8C: agent run outcomes (ready for review is not acceptance), kept apart from automations.
+  agentRunsMetric,
 ];
 
 /** Requirements whose sources are defined by a later phase: listed, never placed (honest absence). */
@@ -1187,13 +1191,6 @@ export const DEFERRED_METRICS: ReadonlyArray<{
   owner: string;
   reason: string;
 }> = [
-  {
-    key: 'agent.rates',
-    label: 'Agent success rates',
-    requirement: 'RPT-013',
-    owner: '8C',
-    reason: 'Agents do not exist yet (automation outcomes are reported by automation.rates).',
-  },
   {
     key: 'quality.release',
     label: 'Test pass rate, flaky tests, defects, and release blockers',

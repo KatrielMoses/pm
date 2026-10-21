@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { AgentService } from '@pm/work';
+import type { AgentRunService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerFiles } from './files-routes.ts';
 import { registerSearch } from './search-routes.ts';
@@ -29,7 +29,7 @@ import { registerWorkflows } from './workflow-routes.ts';
 import { registerPortability } from './portability-routes.ts';
 
 export interface WorkRouteDeps {
-  work: AgentService;
+  work: AgentRunService;
 }
 
 type Params = {
