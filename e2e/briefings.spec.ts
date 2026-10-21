@@ -65,7 +65,10 @@ test('AT-467 Phase 7E briefing journey: cross-brand daily briefing with evidence
     .filter({ hasText: 'Harbor overdue checklist' })
     .filter({ hasText: 'still open' });
   await expect(overdueRow.getByText('Fact', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Agent-run review is not available yet/)).toBeVisible();
+  // 8C: the agent-run section states real runs; with none it says so (never "accepted").
+  await expect(
+    page.getByText(/No agent run on a task you can read returned output for review/),
+  ).toBeVisible();
   await expect(page.getByText(/Generated wording is not part of this briefing/)).toBeVisible();
   await expectAccessible(page, 'briefing-detail');
   // A note on the overdue statement, approved for my future briefings.
